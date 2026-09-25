@@ -1,0 +1,6 @@
+Flask>=3.1,<4
+requests>=2.32,<3
+pywebview>=5.4,<6
+pyinstaller>=6.11,<7
+rjsmin>=1.2,<2
+python-minifier>=2.9,<3

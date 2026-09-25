@@ -1,0 +1,18 @@
+Please refactor the entire Poinsettia repository into a production-ready, highly secure, localized Windows desktop application ready for Microsoft Store distribution. Execute the following updates across the codebase:
+
+1. HARDEN EULA ENFORCEMENT & COMPLIANCE:
+- Completely remove the passive banner warning from the bottom of the chat interface. 
+- Implement strict gating logic: if a user has not accepted the latest EULA version (protecting Section 4 Line 5), the entire chat UI must be completely blocked and hidden behind an active clickwrap acceptance screen. 
+- Save this acceptance flag locally in a cryptographically hashed format so users cannot bypass it by editing a plain-text file.
+- Create an 'open_source_credits.txt' file in the root directory containing standard Apache 2.0 attribution notices for Google DeepMind (Gemma 4B) and OpenAI (gpt-oss-20b) to ensure full licensing compliance without exposing our own proprietary code.
+
+2. SYSTEM BOOTSTRAPPER & AUTOMATION (main.py):
+- Update the startup logic to automatically detect if Ollama is installed on the local system (ping http://127.0.0.1:11434). If missing, silently trigger a background installation process.
+- Automate the creation of our custom local AI brain models by injecting our custom system prompts, layout instructions, and architecture configurations into two separate Modelfiles via Ollama's local command-line API: 'Poinsettia-2.9' (pointing to base model 'gemma4:e4b') and 'Poinsettia-3.8' (pointing to base model 'gpt-oss:20b').
+- Implement an hardware pre-check: if the user's local machine has less than 16GB of RAM, surface a friendly UI warning stating that Poinsettia 3.8 may experience heavy performance latency.
+- Handle the ~15GB download size by passing an async progress percentage from Ollama's /api/pull API back to the 127.0.0.1 frontend web layout so the user sees a smooth loading status bar on their very first boot.
+
+3. SECURITY, OBFUSCATION & PACKAGING:
+- Run a strict production minification pipeline on all frontend HTML/CSS/JS components.
+- Prepare an obfuscation script for our Python application logic so that all variable names, system prompt strings, and inner scripts are rendered completely unreadable to anyone trying to unpack the local binaries or inspect the local installation directory.
+- Provide step-by-step instructions on how to compile this finalized repository into a single, closed Windows binary (.exe or MSIX) suitable for the Microsoft Store.

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Poinsettia End User License Agreement.">
+    <title>End User License Agreement · Poinsettia</title>
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon.png?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dark-bg: #121212;
+            --darker-bg: #0a0a0a;
+            --card-bg: #1e1e1e;
+            --primary-color: #ff5252;
+            --primary-hover: #ff7070;
+            --text-color: #f0f0f0;
+            --text-secondary: #bdbdbd;
+            --muted: #888;
+            --border: rgba(255,255,255,0.1);
+            --soft-red: rgba(255,82,82,0.1);
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at 78% 0%, rgba(255,82,82,0.08), transparent 28rem),
+                var(--dark-bg);
+            color: var(--text-color);
+            font: 1rem/1.7 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        a { color: inherit; }
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: rgba(10,10,10,0.92);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(16px);
+        }
+        .header-inner {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary-color);
+            font-size: 1.35rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .brand img { width: 36px; height: 36px; object-fit: contain; }
+        .header-actions { display: flex; align-items: center; gap: 20px; }
+        .header-link {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            text-decoration: none;
+        }
+        .header-link:hover { color: var(--primary-color); }
+        .launch-link {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: var(--primary-color);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .launch-link:hover { background: var(--primary-hover); }
+        .eula-layout {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 72px 24px 100px;
+        }
+        .eyebrow {
+            margin: 0 0 14px;
+            color: var(--primary-color);
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+        h1, h2 { line-height: 1.2; }
+        h1 {
+            max-width: 760px;
+            margin: 0 0 18px;
+            font-size: clamp(2.5rem, 6vw, 4.7rem);
+            letter-spacing: -0.045em;
+        }
+        .lead {
+            max-width: 720px;
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 1.12rem;
+        }
+        .intro {
+            padding-bottom: 44px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 46px;
+        }
+        .notice {
+            margin: 28px 0 46px;
+            padding: 22px 24px;
+            border: 1px solid rgba(255,82,82,0.28);
+            border-radius: 14px;
+            background: var(--soft-red);
+        }
+        .notice p { margin: 0; color: #e7c9c9; }
+        .notice strong { color: var(--primary-color); }
+        .eula-section {
+            margin-bottom: 38px;
+            scroll-margin-top: 100px;
+        }
+        .eula-section h2 {
+            margin: 0 0 12px;
+            font-size: 1.45rem;
+        }
+        .section-number {
+            display: inline-block;
+            min-width: 34px;
+            margin-right: 8px;
+            color: var(--primary-color);
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+        }
+        .eula-section p, .eula-section li {
+            color: var(--text-secondary);
+            font-size: 0.98rem;
+        }
+        .eula-section p { margin: 0 0 13px; }
+        .eula-section ul { margin: 12px 0 0; padding-left: 24px; }
+        .eula-section li { margin-bottom: 7px; }
+        .site-footer {
+            padding: 28px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--darker-bg);
+            color: var(--muted);
+            font-size: 0.86rem;
+            text-align: center;
+        }
+        .site-footer a { color: var(--text-secondary); text-decoration: none; }
+        .site-footer a:hover { color: var(--primary-color); }
+        @media (max-width: 560px) {
+            .header-inner { padding: 12px 16px; }
+            .header-actions { gap: 12px; }
+            .header-link { display: none; }
+            .eula-layout { padding: 48px 16px 80px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="/" class="brand">
+                <img src="data:image/png;base64,{{ logo_base64 }}" alt="Poinsettia logo">
+                <span>Poinsettia</span>
+            </a>
+            <div class="header-actions">
+                <a href="/" class="header-link">Home</a>
+                <a href="/documentation" class="header-link">Documentation</a>
+                <a href="/chat" class="launch-link">Launch App</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="eula-layout">
+        <section class="intro">
+            <p class="eyebrow">User Agreement · Version {{ eula_version }}</p>
+            <h1>End User License Agreement</h1>
+            <p class="lead">This agreement governs your access to and use of the Poinsettia General Suite, including Poinsettia 2 and Poinsettia 3.9.</p>
+            <p class="lead">Effective date: September 6, 2026</p>
+        </section>
+
+        <div class="notice">
+            <p><strong>Please read this agreement carefully.</strong> By selecting “I agree” during account creation, you confirm that you are at least 13 years old and accept these terms. If you do not agree, do not create an account or use the services.</p>
+        </div>
+
+        <section class="eula-section" id="acceptance">
+            <h2><span class="section-number">01</span>Acceptance and eligibility</h2>
+            <p>You may use Poinsettia only if you are 13 years of age or older and legally able to accept this agreement. If you are under the age of majority where you live, you should review these terms with a parent or legal guardian.</p>
+            <p>Creating an account, signing in, or using a Poinsettia service means that you accept this agreement and any policies linked from it.</p>
+        </section>
+
+        <section class="eula-section" id="account">
+            <h2><span class="section-number">02</span>Your account</h2>
+            <p>You are responsible for the accuracy of the information you provide and for keeping your username and password confidential. Do not share access to your account or use another person’s account without permission.</p>
+            <p>Notify the service owner if you believe your account has been accessed without authorization. You are responsible for activity performed through your account to the extent permitted by law.</p>
+        </section>
+
+        <section class="eula-section" id="license">
+            <h2><span class="section-number">03</span>License to use the services</h2>
+            <p>Subject to this agreement, Jackson Reis grants you a limited, non-exclusive, non-transferable, and revocable right to use Poinsettia for lawful personal use and for your business or organization’s internal purposes. You may use Poinsettia in business workflows and commercial projects, provided that you follow this agreement and applicable law. The service is intended to remain free to use, but availability and included features may change.</p>
+            <p>The Poinsettia General Suite, its application code, interfaces, branding, configurations, and proprietary model modifications are owned by Jackson Reis or their respective licensors. This agreement does not transfer ownership or grant rights beyond the limited access described here.</p>
+            <p><strong>Annual editions and updates.</strong> This license applies to the specific annual edition or suite version of Poinsettia that you have acquired. Jackson Reis may distribute patches, security fixes, compatibility updates, and annual editions through the Microsoft Store or another authorized distribution channel. Whether a later annual edition or newer AI model is included with your license, requires a separate license, or is unavailable will be identified with that release. An update may replace application files while preserving supported local user data, but no update process guarantees that data will be retained; you are responsible for keeping backups of important data.</p>
+            <p>When a standalone edition uses an update handler, the handler may check for an available release and download authorized application components. The update process does not grant permission to bypass licensing, Store requirements, or access controls. Jackson Reis may modify or discontinue backend infrastructure, external data pipelines, or update distribution for an edition if continued operation becomes unfeasible.</p>
+        </section>
+
+        <section class="eula-section" id="acceptable-use">
+            <h2><span class="section-number">04</span>Acceptable use</h2>
+            <p>You agree not to misuse the services or interfere with their operation. Prohibited conduct includes:</p>
+            <ul>
+                <li>Using Poinsettia for unlawful, fraudulent, abusive, threatening, or harmful activity.</li>
+                <li>Attempting to gain unauthorized access to accounts, systems, models, or data.</li>
+                <li>Introducing malware, malicious prompts, automated abuse, or excessive traffic intended to degrade the service.</li>
+                <li>Reverse engineering, decompiling, disassembling, or otherwise attempting to derive the source code or underlying ideas from the Poinsettia software, application, or binaries.</li>
+                <li>Redistributing, copying, selling, sublicensing, or otherwise sharing the Poinsettia software or binaries without prior written permission.</li>
+                <li>Modifying, adapting, translating, or creating derivative works from the Poinsettia software, application, or binaries without prior written permission.</li>
+                <li>Circumventing technical limits or access controls of the proprietary application.</li>
+                <li>Using generated content to violate another person’s rights or applicable law.</li>
+            </ul>
+        </section>
+
+        <section class="eula-section" id="ai-output">
+            <h2><span class="section-number">05</span>AI-generated output</h2>
+            <p>Poinsettia responses are generated automatically and may be inaccurate, incomplete, outdated, or unsuitable for your situation. Poinsettia 3.9 may retrieve current information from external sources and may interpret images and speech/audio, but citations, retrieved material, and multimodal output should still be checked independently.</p>
+            <p>Do not rely on Poinsettia as a substitute for professional medical, legal, financial, safety, or other expert advice. You are responsible for reviewing outputs before acting on them or sharing them.</p>
+        </section>
+
+        <section class="eula-section" id="data">
+            <h2><span class="section-number">06</span>Information and privacy</h2>
+            <p>The application stores account information such as your username and a password hash, as well as session identifiers, signed-in conversations, generated-file metadata and content, and selected browser display preferences. A standalone edition may store this information locally, including conversations in an application database such as <code>poinsettia.db</code> and generated files in an application data directory.</p>
+            <p>When you use Poinsettia 3.9, relevant text queries may be sent to external search, weather, geocoding, and source websites to retrieve information. Images and speech/audio you attach are sent to the configured local Ollama Gemma 4 12B runtime for multimodal inference; raw media bytes are not saved as conversation messages by the application. Third-party providers may process research requests under their own terms and privacy policies. Do not submit sensitive personal information that you do not want processed in this way.</p>
+            <p>If an edition includes an update handler, it may process application version, installation, compatibility, and update-status information and may interact with the Microsoft Store or another authorized distribution channel. Those platforms may process account, device, licensing, download, and diagnostic information under their own terms and privacy policies. An update check is separate from your chat content; local conversations are not needed merely to determine whether an application update is available.</p>
+            <p>For a fuller explanation of collection, use, retention, cookies, and your choices, please read the <a href="/privacy">Privacy Policy</a>.</p>
+        </section>
+
+        <section class="eula-section" id="third-party">
+            <h2><span class="section-number">07</span>Third-party content and services</h2>
+            <p>Poinsettia may display links, citations, weather information, search results, and retrieved webpages from third parties. Jackson Reis does not control or endorse all third-party content, and third-party services may have separate terms, licenses, availability, and privacy practices.</p>
+        </section>
+
+        <section class="eula-section" id="content">
+            <h2><span class="section-number">08</span>Your content</h2>
+            <p>You are responsible for the prompts, files, images, speech/audio, and other material you submit or generate through the services, including when you use Poinsettia for a business or commercial project. You must ensure that you have the rights and permissions needed to use that material and that your use complies with your organization’s obligations and applicable law. Do not submit content that you are not permitted to disclose or process.</p>
+            <p>You retain responsibility for your content and for any decisions based on generated output. Nothing in this agreement grants you rights to third-party content returned through Poinsettia.</p>
+        </section>
+
+        <section class="eula-section" id="availability">
+            <h2><span class="section-number">09</span>Availability and changes</h2>
+            <p>The services are provided on an evolving basis. Features, models, sources, limits, and availability may change, be interrupted, or be discontinued. No particular response time, uptime, output, or feature is guaranteed.</p>
+            <p>Jackson Reis may update this agreement when the service, distribution method, update process, or legal obligations change. The version shown during signup or re-acceptance is the version you agree to, and continued use of the software after an update is pushed constitutes acceptance of the new terms where permitted by law. You may be required to review and accept a newer version before using protected services. You can always view the active terms at the public <a href="/eula">EULA page</a>, which is also linked from the Documentation and account signup flow. The active Privacy Policy is always available at the public <a href="/privacy">Privacy Policy page</a>.</p>
+        </section>
+
+        <section class="eula-section" id="termination">
+            <h2><span class="section-number">10</span>Suspension and termination</h2>
+            <p>Access may be suspended or terminated if you violate this agreement, misuse the services, create risk for others, or where continued operation is not reasonably possible. You may stop using the services at any time.</p>
+        </section>
+
+        <section class="eula-section" id="disclaimer">
+            <h2><span class="section-number">11</span>Disclaimers and limitation of liability</h2>
+            <p>To the maximum extent permitted by law, Poinsettia is provided “as is” and “as available,” without warranties of any kind, express or implied. This includes no guarantee that outputs will be accurate, safe, complete, available, or fit for a particular purpose.</p>
+            <p>To the maximum extent permitted by law, Jackson Reis will not be liable for indirect, incidental, special, consequential, exemplary, or punitive damages, or for loss arising from reliance on generated output, third-party content, service interruption, or unauthorized account activity. Nothing here limits rights that cannot lawfully be limited.</p>
+        </section>
+
+        <section class="eula-section" id="general">
+            <h2><span class="section-number">12</span>General terms</h2>
+            <p>If a provision of this agreement is unenforceable, the remaining provisions remain in effect. A failure to enforce a provision is not a waiver of the right to enforce it later. This agreement and the policies it references form the understanding between you and the service owner about your use of Poinsettia.</p>
+        </section>
+
+        <section class="eula-section" id="governing-law">
+            <h2><span class="section-number">13</span>Governing law and jurisdiction</h2>
+            <p>This agreement and any disputes arising out of or relating to it will be governed by and construed in accordance with the laws of the State of New York, United States, without regard to its conflict of law principles. You explicitly agree that any legal action, suit, or proceeding arising under this agreement must be brought exclusively in the state or federal courts located in Dutchess County, New York, and you hereby consent to the personal jurisdiction and venue of these courts.</p>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <span>Poinsettia · 2026</span>
+        <span> · </span>
+        <a href="/documentation">Documentation</a>
+        <span> · </span>
+        <a href="/documentation/free-access">Free access policy</a>
+        <span> · </span>
+        <a href="/privacy">Privacy Policy</a>
+        <span> · </span>
+        <a href="/chat">Launch app</a>
+    </footer>
+</body>
+</html>

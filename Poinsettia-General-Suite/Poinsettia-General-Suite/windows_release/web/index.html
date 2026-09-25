@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Poinsettia Windows</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <main id="legal-gate" class="gate" aria-labelledby="gate-title">
+    <section class="card gate-card">
+      <p class="eyebrow" data-i18n="legalKicker">Required before use</p>
+      <h1 id="gate-title" data-i18n="gateTitle">Review the Poinsettia User Agreement</h1>
+      <p data-i18n="gateCopy">The Windows release is blocked until you review and accept the current local-use terms.</p>
+      <button id="open-eula" class="button secondary" data-i18n="readEula">Read the User Agreement</button>
+      <label class="check-row">
+        <input id="accept-eula" type="checkbox" disabled>
+        <span data-i18n="acceptEula">I have reviewed and accept the current User Agreement.</span>
+      </label>
+      <button id="accept-button" class="button" disabled data-i18n="continue">Accept and continue</button>
+      <p id="gate-error" class="error" role="alert"></p>
+    </section>
+  </main>
+
+  <main id="app-shell" class="shell hidden">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">POINSETTIA WINDOWS</p>
+        <h1>Poinsettia</h1>
+      </div>
+      <label class="language-picker">
+        <span data-i18n="language">Language</span>
+        <select id="language">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </label>
+    </header>
+
+    <section id="hardware-warning" class="warning hidden" role="status"></section>
+    <section class="card setup-card">
+      <div class="setup-heading">
+        <div>
+          <p class="eyebrow" data-i18n="firstBoot">FIRST BOOT</p>
+          <h2 data-i18n="localModels">Prepare local AI models</h2>
+        </div>
+        <span id="setup-percent">0%</span>
+      </div>
+      <p id="setup-message" data-i18n="readyToCheck">Ready to check the local AI runtime.</p>
+      <div class="progress"><span id="setup-progress"></span></div>
+      <button id="setup-start" class="button secondary" data-i18n="startSetup">Start local model setup</button>
+    </section>
+
+    <section class="card chat-card">
+      <div class="chat-heading">
+        <div>
+          <p class="eyebrow" data-i18n="privateLocal">PRIVATE LOCAL CHAT</p>
+          <h2 data-i18n="chatTitle">Ask Poinsettia</h2>
+        </div>
+        <select id="mode">
+          <option value="p2">Poinsettia 2.9</option>
+          <option value="p3">Poinsettia 3.9 · Gemma 4 12B</option>
+        </select>
+      </div>
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <form id="chat-form" class="composer">
+        <textarea id="prompt" rows="3" data-i18n-placeholder="promptPlaceholder" placeholder="Ask a question…"></textarea>
+        <button class="button" type="submit" data-i18n="send">Send</button>
+      </form>
+      <p id="chat-error" class="error" role="alert"></p>
+    </section>
+    <p class="footer-links"><button id="open-privacy" class="link-button" data-i18n="privacy">Privacy Policy</button></p>
+  </main>
+
+  <dialog id="legal-dialog" class="legal-dialog">
+    <article class="legal-panel">
+      <header>
+        <h2 id="legal-title">User Agreement</h2>
+        <button id="close-legal" class="icon-button" aria-label="Close">×</button>
+      </header>
+      <pre id="legal-content" class="legal-content"></pre>
+      <footer>
+        <button id="legal-dialog-close" class="button secondary" data-i18n="close">Close</button>
+      </footer>
+    </article>
+  </dialog>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

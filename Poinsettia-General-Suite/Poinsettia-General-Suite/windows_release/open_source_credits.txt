@@ -1,0 +1,56 @@
+Poinsettia Windows — third-party model attribution
+====================================================
+
+Poinsettia 2.9 base weights
+---------------------------
+Gemma 4B base weights are developed and released by Google DeepMind / Google.
+For the `gemma4:e4b` base weights used by Poinsettia 2.9, the applicable
+license is the Apache License, Version 2.0.
+
+Poinsettia 3.9 base weights
+---------------------------
+Gemma 4 12B base weights are developed and released by Google DeepMind /
+Google. The `gemma4:12b` base weights used by Poinsettia 3.9 are governed by
+the Apache License, Version 2.0. Gemma 4 12B supplies the native multimodal
+image and audio input architecture used by this release.
+
+Apache License, Version 2.0 notice
+----------------------------------
+Copyright 2025 Google DeepMind / Google
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License. You may obtain a copy of
+the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+
+Gemma 4 12B attribution
+-----------------------
+Copyright 2026 Google DeepMind / Google
+
+Gemma 4 12B is distributed under the Apache License, Version 2.0. The
+applicable license text is included in this release's third-party license
+bundle where the model distribution permits redistribution.
+
+Poinsettia 4.0 base weights
+---------------------------
+Poinsettia 4.0 "Fax" uses the `gemma4:26b` base model and Poinsettia 4.0
+"Candor" uses the `gemma4:31b` base model. Both base models are distributed
+under the Apache License, Version 2.0.
+
+Gemma 4 26B and 31B attribution
+--------------------------------
+Copyright 2026 Google DeepMind / Google
+
+The `gemma4:26b` and `gemma4:31b` base weights are distributed under the
+Apache License, Version 2.0. The Apache License, Version 2.0 notice above is
+part of this release's third-party license bundle and must remain with
+redistributed copies.
+
+This file attributes model base weights only. It does not grant rights to
+Poinsettia's proprietary application code, prompts, branding, or UI.

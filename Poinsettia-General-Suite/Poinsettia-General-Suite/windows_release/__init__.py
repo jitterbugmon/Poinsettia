@@ -1,0 +1,1 @@
+"""Isolated Poinsettia Windows desktop release package."""
