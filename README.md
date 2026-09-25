@@ -176,5 +176,10 @@ Poinsettia may be used in lawful business workflows and commercial projects unde
 11. Changes to this policy
     Jackson Reis may update this Privacy Policy as the service, storage architecture, distribution method, update practices, or legal requirements change. The active policy is always available at the public Privacy Policy page, /privacy, linked from the EULA and Documentation. You may be asked to review and accept a materially changed policy before using protected services. Continued use of Poinsettia after an update is published constitutes acceptance of the updated policy where permitted by law.
 
+
+--------------------------------
 Attribution
-Credit to Google DeepMind for the baseline gemma 4 models (e4b, 12b, 26b, and 31b). Baseline models governed under the Apache 2.0 License. Poinsettia application code, branding, prompts, UI, and proprietary configuration remain proprietary.
+Credit to Google DeepMind for the baseline gemma 4 models (e4b, 12b, 26b, and 31b). Baseline models governed under the Apache 2.0 License. Poinsettia application code, branding, prompts, UI, and proprietary configuration remain proprietary. Poinsettia is not affiliated with, sponsored by, or endorsed by Google.
+
+This project uses [Ollama](https://ollama.com/) as a local runtime to run its configured language models. Ollama is a separate project; Poinsettia is not affiliated with, sponsored by, or endorsed by Ollama. For Ollama software, documentation, and licensing information, visit the [official website](https://ollama.com/) and [GitHub repository](https://github.com/ollama/ollama).
+```
