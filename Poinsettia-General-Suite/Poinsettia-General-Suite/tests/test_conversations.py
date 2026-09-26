@@ -373,15 +373,9 @@ class ConversationCrudTests(unittest.TestCase):
                 expect(page.locator(".conversation-item").first).to_have_attribute(
                     "data-conversation-id", renamed_p2.get_attribute("data-conversation-id")
                 )
-                pinned_style = renamed_p2.evaluate(
-                    """(element) => ({
-                        connected: element.isConnected,
-                        className: element.className,
-                        background: getComputedStyle(element).getPropertyValue('background-color'),
-                        shadow: getComputedStyle(element).getPropertyValue('box-shadow')
-                    })"""
+                expect(renamed_p2).to_have_css(
+                    "background-color", re.compile(r"255, 213, 79")
                 )
-                self.assertIn("255, 213, 79", pinned_style["background"], pinned_style)
 
                 # Delete the P3 chat, covering cancellation and dismissal
                 # before confirming it disappears without disturbing the
@@ -522,7 +516,8 @@ class ConversationCrudTests(unittest.TestCase):
                     old_chat = self._conversation_item(page, "P2", "Race chat")
                     conversation_id = int(old_chat.get_attribute("data-conversation-id"))
                     old_chat.locator(".conversation-select").click()
-                    expect(page.locator("#chat-messages")).to_contain_text("Loading chat…")
+                    expect(page.locator(".bot-message").last).to_contain_text("Saved assistant reply")
+                    expect(page.locator("#chat-messages")).not_to_contain_text("Loading chat…")
 
                     connection = type(self).connect_to_test_database()
                     count = connection.execute(
@@ -546,6 +541,18 @@ class ConversationCrudTests(unittest.TestCase):
                     ]
                     connection.close()
                     self.assertEqual(roles, ["user", "assistant"])
+
+                    page.route(f"**/conversations/{conversation_id}", lambda route: route.abort())
+                    page.reload(wait_until="domcontentloaded")
+                    expect(page.locator("#chat-messages")).to_contain_text(
+                        "Unable to load chat. Select it again to retry."
+                    )
+                    page.unroute(f"**/conversations/{conversation_id}")
+                    page.locator("#conversation-sidebar-toggle").click()
+                    self._conversation_item(page, "P2", "Race chat").locator(
+                        ".conversation-select"
+                    ).click()
+                    expect(page.locator(".bot-message").last).to_contain_text("Saved assistant reply")
                 finally:
                     allow_assistant_save.set()
                     browser.close()
@@ -963,6 +970,103 @@ class ConversationCrudTests(unittest.TestCase):
         )
         self.assertEqual(login.status_code, 200)
         self.assertEqual(self.client.get(f"/conversations/{conversation_id}").status_code, 404)
+
+    def test_failed_save_survives_reload_and_recovers_without_overwriting_newer_chat(self):
+        if not PLAYWRIGHT_AVAILABLE:
+            self.skipTest("Playwright is not installed in this environment")
+        with sync_playwright() as playwright:
+            options = {"headless": True, "args": ["--no-sandbox"]}
+            chromium = shutil.which("chromium") or shutil.which("chromium-browser")
+            if chromium:
+                options["executable_path"] = chromium
+            try:
+                browser = playwright.chromium.launch(**options)
+            except PlaywrightError as error:
+                self.skipTest(f"Chromium is unavailable: {error}")
+            page = browser.new_page(viewport={"width": 1280, "height": 900})
+            page.route(
+                "**/chat/stream",
+                lambda route: route.fulfill(
+                    status=200, content_type="text/event-stream",
+                    body='data: {"text":"Recovered reply"}\n\ndata: {"done":true}\n\n',
+                ),
+            )
+            try:
+                page.goto(f"{self.base_url}/chat", wait_until="domcontentloaded")
+                page.locator("#auth-gate-open").click()
+                page.locator("#signin-username").fill("chat-owner")
+                page.locator("#signin-password").fill("correct horse")
+                page.locator("#auth-signin-form button[type=submit]").click()
+                expect(page.locator("#header-user-chip")).to_be_visible()
+                page.route("**/conversations/save", lambda route: route.abort())
+                page.locator("#conversation-sidebar-toggle").click()
+                page.locator("#new-chat-btn").click()
+                expect(self._conversation_item(page, "P2", "New chat")).to_have_count(1)
+                chat_id = int(self._conversation_item(page, "P2", "New chat").get_attribute("data-conversation-id"))
+                page.locator("#conversation-sidebar-close").click()
+                page.locator("#chat-input").fill("Keep this reply")
+                page.locator("#send-button").click()
+                expect(page.locator(".bot-message").last).to_contain_text("Recovered reply")
+                draft_key = f"poinsettia_unsaved_chat_user_1_{chat_id}"
+                self.assertIn("Recovered reply", page.evaluate(
+                    "(key) => localStorage.getItem(key)", draft_key
+                ))
+                page.reload(wait_until="domcontentloaded")
+                expect(page.locator(".bot-message").last).to_contain_text("Recovered reply")
+                self.assertIsNotNone(page.evaluate("(key) => localStorage.getItem(key)", draft_key))
+
+                page.unroute("**/conversations/save")
+                page.evaluate("window.dispatchEvent(new Event('online'))")
+                page.wait_for_function("(key) => localStorage.getItem(key) === null", arg=draft_key)
+                saved = self.client.get(f"/conversations/{chat_id}").json["messages"]
+                self.assertEqual([m["role"] for m in saved], ["user", "assistant"])
+                page.reload(wait_until="domcontentloaded")
+                expect(page.locator(".bot-message").last).to_contain_text("Recovered reply")
+
+                # A failed save followed by a different server-side reply is a conflict.
+                page.route("**/conversations/save", lambda route: route.abort())
+                page.locator("#chat-input").fill("Another local turn")
+                page.locator("#send-button").click()
+                expect(page.locator(".bot-message").last).to_contain_text("Recovered reply")
+                self.assertIn("Another local turn", page.evaluate(
+                    "(key) => localStorage.getItem(key)", draft_key
+                ))
+                newer = self.client.post("/conversations/save", json={
+                    "conversation_id": chat_id, "mode": "p2",
+                    "messages": [
+                        {"role": "user", "content": "Server-only turn"},
+                        {"role": "assistant", "content": "Server's newer answer"},
+                    ],
+                })
+                self.assertEqual(newer.status_code, 200)
+                page.unroute("**/conversations/save")
+                page.reload(wait_until="domcontentloaded")
+                expect(page.locator("#chat-messages")).to_contain_text("Another local turn")
+                self.assertIsNotNone(page.evaluate("(key) => localStorage.getItem(key)", draft_key))
+                self.assertEqual(
+                    self.client.get(f"/conversations/{chat_id}").json["messages"][-1]["content"],
+                    "Server's newer answer",
+                )
+            finally:
+                browser.close()
+
+    def test_conditional_save_rejects_stale_revision(self):
+        chat_id = self.client.post("/conversations", json={"mode": "p2"}).json["conversation"]["id"]
+        original = self.client.get(f"/conversations/{chat_id}").json["revision"]
+        payload = {"conversation_id": chat_id, "mode": "p2",
+                   "messages": [{"role": "user", "content": "Newer message"}],
+                   "expected_revision": original}
+        saved = self.client.post("/conversations/save", json=payload)
+        self.assertEqual(saved.status_code, 200)
+        self.assertNotEqual(saved.json["revision"], original)
+        stale = self.client.post("/conversations/save", json={
+            **payload, "messages": [{"role": "user", "content": "Stale message"}],
+        })
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(
+            self.client.get(f"/conversations/{chat_id}").json["messages"][0]["content"],
+            "Newer message",
+        )
 
 
 if __name__ == "__main__":

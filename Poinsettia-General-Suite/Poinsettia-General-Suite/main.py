@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import hashlib
 import secrets
 import logging
 import base64
@@ -1411,6 +1412,17 @@ def _conversation_for_user(db, conversation_id, user_id):
     ).fetchone()
 
 
+def _message_revision(db, conversation_id):
+    """Fingerprint the exact stored rows, including IDs changed by replacements."""
+    rows = db.execute(
+        'SELECT id, role, content FROM messages WHERE conversation_id = ? ORDER BY id',
+        (conversation_id,)
+    ).fetchall()
+    return hashlib.sha256(json.dumps(
+        [tuple(row) for row in rows], ensure_ascii=False
+    ).encode('utf-8')).hexdigest()
+
+
 @app.route('/conversations', methods=['GET'])
 def list_conversations():
     auth_error = require_authenticated_user()
@@ -1503,6 +1515,8 @@ def get_conversation(conversation_id):
         return auth_error
     user = get_current_user()
     db = get_db()
+    # Keep the messages and revision in the same read snapshot.
+    db.execute('BEGIN')
     row = _conversation_for_user(db, conversation_id, user['id'])
     if not row:
         db.close()
@@ -1512,10 +1526,12 @@ def get_conversation(conversation_id):
            FROM messages WHERE conversation_id = ? ORDER BY id ASC''',
         (conversation_id,)
     ).fetchall()
+    revision = _message_revision(db, conversation_id)
     db.close()
     return jsonify({
         'conversation': _conversation_summary(row),
         'messages': [dict(message) for message in messages],
+        'revision': revision,
     })
 
 
@@ -1599,6 +1615,9 @@ def save_conversation():
         return jsonify({'error': 'Messages must be a list.'}), 400
 
     db = get_db()
+    # A write lock covers the revision check and replacement, so two tabs
+    # cannot both pass the check against the same old message list.
+    db.execute('BEGIN IMMEDIATE')
     metadata_available = {'title', 'pinned', 'created_at'}.issubset(_conversation_columns(db))
     row = None
     if conversation_id is not None:
@@ -1614,6 +1633,11 @@ def save_conversation():
         if row['mode'] != mode:
             db.close()
             return jsonify({'error': 'Conversation mode does not match.'}), 400
+        if 'expected_revision' in data:
+            expected = data['expected_revision']
+            if not isinstance(expected, str) or expected != _message_revision(db, conversation_id):
+                db.close()
+                return jsonify({'error': 'This chat changed on the server. Your unsaved messages were not overwritten.'}), 409
     else:
         # Compatibility for older clients: continue updating their latest
         # conversation instead of creating a second thread unexpectedly.
@@ -1663,11 +1687,13 @@ def save_conversation():
     )
     db.commit()
     saved = _conversation_for_user(db, conversation_id, user['id'])
+    revision = _message_revision(db, conversation_id)
     db.close()
     return jsonify({
         'ok': True,
         'conversation_id': conversation_id,
         'conversation': _conversation_summary(saved),
+        'revision': revision,
     })
 
 
