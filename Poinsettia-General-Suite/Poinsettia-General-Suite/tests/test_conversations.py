@@ -455,6 +455,101 @@ class ConversationCrudTests(unittest.TestCase):
                 context.close()
                 browser.close()
 
+    def test_switching_back_waits_for_assistant_reply_to_save(self):
+        """A pending assistant save must finish before reloading the prior chat."""
+        if not PLAYWRIGHT_AVAILABLE:
+            self.skipTest("Playwright is not installed in this environment")
+
+        assistant_save_started = threading.Event()
+        allow_assistant_save = threading.Event()
+        original_save = self.app.view_functions["save_conversation"]
+
+        def delayed_assistant_save():
+            payload = main.request.get_json(silent=True) or {}
+            if any(
+                isinstance(message, dict) and message.get("role") == "assistant"
+                for message in payload.get("messages", [])
+            ):
+                assistant_save_started.set()
+                if not allow_assistant_save.wait(timeout=10):
+                    raise TimeoutError("The test did not release the assistant save.")
+            return original_save()
+
+        with patch.dict(self.app.view_functions, {"save_conversation": delayed_assistant_save}):
+            with sync_playwright() as playwright:
+                launch_options = {"headless": True, "args": ["--no-sandbox"]}
+                chromium = shutil.which("chromium") or shutil.which("chromium-browser")
+                if chromium:
+                    launch_options["executable_path"] = chromium
+                try:
+                    browser = playwright.chromium.launch(**launch_options)
+                except PlaywrightError as error:
+                    self.skipTest(f"Chromium is unavailable: {error}")
+
+                page = browser.new_page(viewport={"width": 1280, "height": 900})
+                page.route(
+                    "**/chat/stream",
+                    lambda route: route.fulfill(
+                        status=200,
+                        content_type="text/event-stream",
+                        body=(
+                            'data: {"text":"Saved assistant reply"}\n\n'
+                            'data: {"done":true}\n\n'
+                        ),
+                    ),
+                )
+                try:
+                    page.goto(f"{self.base_url}/chat", wait_until="domcontentloaded")
+                    page.locator("#auth-gate-open").click()
+                    page.locator("#signin-username").fill("chat-owner")
+                    page.locator("#signin-password").fill("correct horse")
+                    page.locator("#auth-signin-form").locator("button[type=submit]").click()
+                    expect(page.locator("#header-user-chip")).to_be_visible()
+
+                    sidebar_toggle = page.locator("#conversation-sidebar-toggle")
+                    sidebar_toggle.click()
+                    page.locator("#new-chat-btn").click()
+                    expect(self._conversation_item(page, "P2", "New chat")).to_have_count(1)
+                    page.locator("#conversation-sidebar-close").click()
+                    page.locator("#chat-input").fill("Race chat")
+                    page.locator("#send-button").click()
+                    expect(page.locator(".bot-message").last).to_contain_text("Saved assistant reply")
+                    self.assertTrue(assistant_save_started.wait(timeout=5))
+
+                    sidebar_toggle.click()
+                    page.locator("#new-chat-btn").click()
+                    expect(self._conversation_item(page, "P2", "New chat")).to_have_count(1)
+                    old_chat = self._conversation_item(page, "P2", "Race chat")
+                    conversation_id = int(old_chat.get_attribute("data-conversation-id"))
+                    old_chat.locator(".conversation-select").click()
+                    expect(page.locator("#chat-messages")).to_contain_text("Loading chat…")
+
+                    connection = type(self).connect_to_test_database()
+                    count = connection.execute(
+                        "SELECT COUNT(*) FROM messages WHERE conversation_id = ?",
+                        (conversation_id,),
+                    ).fetchone()[0]
+                    connection.close()
+                    self.assertEqual(count, 1)
+
+                    allow_assistant_save.set()
+                    expect(page.locator(".bot-message").last).to_contain_text("Saved assistant reply")
+                    page.reload(wait_until="domcontentloaded")
+                    expect(page.locator(".bot-message").last).to_contain_text("Saved assistant reply")
+
+                    connection = type(self).connect_to_test_database()
+                    roles = [
+                        row[0] for row in connection.execute(
+                            "SELECT role FROM messages WHERE conversation_id = ? ORDER BY id",
+                            (conversation_id,),
+                        )
+                    ]
+                    connection.close()
+                    self.assertEqual(roles, ["user", "assistant"])
+                finally:
+                    allow_assistant_save.set()
+                    browser.close()
+
     def test_browser_long_formatted_assistant_reply_is_not_clipped(self):
         """Keep long assistant bubbles inside the scrolling chat viewport."""
         if not PLAYWRIGHT_AVAILABLE:
