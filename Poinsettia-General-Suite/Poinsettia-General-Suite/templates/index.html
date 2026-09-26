@@ -3526,9 +3526,11 @@
             let activeConversationIds = { p2: null, p3: null, 'p4-fax': null, 'p4-candor': null };
             let conversationSaveQueues = Object.create(null);
             let conversationUnsavedDrafts = Object.create(null);
+            const draftPrefix = 'poinsettia_unsaved_chat_user_';
             let conversationSearchTerm = '';
             let conversationLoadToken = 0;
             let authStateToken = 0;
+            let authBootstrapFailed = false;
             let creatingConversationPromise = null;
             let pendingAttachments = [];
             let audioRecorder = null;
@@ -5807,6 +5809,135 @@
                 renderConversationList();
             }
 
+            function draftStorageKey(userId, conversationId) {
+                return draftPrefix + userId + '_' + conversationId;
+            }
+
+            function rememberConversationDraft(conversationId, mode, messages) {
+                var draft = {mode: mode, messages: messages};
+                conversationUnsavedDrafts[String(conversationId)] = draft;
+                try {
+                    localStorage.setItem(draftStorageKey(currentUser.id, conversationId), JSON.stringify(draft));
+                } catch (error) {
+                    errorMessage.textContent = 'Browser storage is unavailable. Keep this page open until the chat is saved.';
+                    errorMessage.style.display = 'block';
+                }
+                return draft;
+            }
+
+            function forgetConversationDraft(conversationId, draft, userId) {
+                var key = String(conversationId);
+                if (conversationUnsavedDrafts[key] !== draft) return;
+                delete conversationUnsavedDrafts[key];
+                try {
+                    var storageKey = draftStorageKey(userId, conversationId);
+                    if (localStorage.getItem(storageKey) === JSON.stringify(draft)) {
+                        localStorage.removeItem(storageKey);
+                    }
+                } catch (error) {}
+            }
+
+            function restoreConversationDrafts() {
+                conversationUnsavedDrafts = Object.create(null);
+                var prefix = draftPrefix + currentUser.id + '_';
+                try {
+                    for (var i = 0; i < localStorage.length; i++) {
+                        var key = localStorage.key(i);
+                        if (!key || key.indexOf(prefix) !== 0) continue;
+                        var id = key.slice(prefix.length);
+                        var conversation = conversationById(id);
+                        if (!conversation) continue;
+                        var draft = JSON.parse(localStorage.getItem(key));
+                        if (draft && draft.mode === conversation.mode && Array.isArray(draft.messages)) {
+                            conversationUnsavedDrafts[id] = draft;
+                        }
+                    }
+                } catch (error) {
+                    errorMessage.textContent = 'Unable to read locally saved chats.';
+                    errorMessage.style.display = 'block';
+                }
+            }
+
+            function sameMessages(left, right) {
+                return left.length === right.length && left.every(function(message, index) {
+                    return message.role === right[index].role &&
+                        message.content === right[index].content;
+                });
+            }
+
+            function serverIsDraftPrefix(server, draft) {
+                return server.length <= draft.length &&
+                    sameMessages(server, draft.slice(0, server.length));
+            }
+
+            function retryConversationDraft(conversationId) {
+                var key = String(conversationId);
+                if (conversationSaveQueues[key]) return conversationSaveQueues[key];
+                if (!currentUser || !conversationUnsavedDrafts[key]) return Promise.resolve(null);
+                var requestUserId = currentUser.id;
+                var requestAuthToken = authStateToken;
+                var firstDraft = conversationUnsavedDrafts[key];
+                var queued;
+                queued = Promise.resolve().then(function attempt() {
+                    if (requestAuthToken !== authStateToken || !currentUser ||
+                        currentUser.id !== requestUserId) return null;
+                    var draft = firstDraft || conversationUnsavedDrafts[key];
+                    firstDraft = null;
+                    if (!draft) return null;
+                    return fetch('/conversations/' + encodeURIComponent(conversationId))
+                        .then(function(response) {
+                            return response.json().then(function(data) {
+                                if (!response.ok) throw new Error(data.error || 'Unable to load chat.');
+                                return data;
+                            });
+                        })
+                        .then(function(server) {
+                            if (requestAuthToken !== authStateToken || !currentUser ||
+                                currentUser.id !== requestUserId) return null;
+                            if (sameMessages(server.messages, draft.messages)) {
+                                forgetConversationDraft(conversationId, draft, requestUserId);
+                                if (conversationUnsavedDrafts[key] &&
+                                    conversationUnsavedDrafts[key] !== draft) return attempt();
+                                return server;
+                            }
+                            if (!serverIsDraftPrefix(server.messages, draft.messages)) {
+                                throw new Error('This chat changed on the server. Your local replies are still here; copy them to a new chat to keep both versions.');
+                            }
+                            return fetch('/conversations/save', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    mode: draft.mode,
+                                    conversation_id: conversationId,
+                                    messages: draft.messages,
+                                    expected_revision: server.revision
+                                })
+                            }).then(function(response) {
+                                return response.json().then(function(data) {
+                                    if (!response.ok) throw new Error(data.error || 'Unable to save this chat.');
+                                    if (requestAuthToken !== authStateToken || !currentUser ||
+                                        currentUser.id !== requestUserId) return null;
+                                    forgetConversationDraft(conversationId, draft, requestUserId);
+                                    if (data.conversation) updateConversationInList(data.conversation);
+                                    if (conversationUnsavedDrafts[key]) return attempt();
+                                    return data;
+                                });
+                            });
+                        });
+                }).catch(function(error) {
+                    if (requestAuthToken === authStateToken && currentUser &&
+                        currentUser.id === requestUserId) {
+                        errorMessage.textContent = error.message;
+                        errorMessage.style.display = 'block';
+                    }
+                    return null;
+                }).finally(function() {
+                    if (conversationSaveQueues[key] === queued) delete conversationSaveQueues[key];
+                });
+                conversationSaveQueues[key] = queued;
+                return queued;
+            }
+
             function updateConversationInList(updated) {
                 var index = conversations.findIndex(function(conversation) {
                     return String(conversation.id) === String(updated.id);
@@ -5854,6 +5985,7 @@
                 if (inFilesView && !exitFilesView()) return;
                 createConversationOnServer(currentMode).then(function(conversation) {
                     if (!conversation) return;
+                    ++conversationLoadToken;
                     conversations.push(conversation);
                     histories[conversation.mode] = [];
                     updateModeUI(conversation.mode, releaseIdForMode(conversation.mode));
@@ -5871,24 +6003,37 @@
                 var requestAuthToken = authStateToken;
                 var requestUserId = currentUser.id;
                 var saveKey = String(conversation.id);
-                var pendingSave = conversationSaveQueues[saveKey];
+                var pendingSave = retryConversationDraft(conversation.id);
                 updateModeUI(conversation.mode, releaseIdForMode(conversation.mode));
                 setActiveConversation(conversation);
                 chatMessages.innerHTML = '';
                 var loadingMessage = document.createElement('div');
                 loadingMessage.className = 'message welcome-message';
                 loadingMessage.textContent = 'Loading chat…';
-                chatMessages.appendChild(loadingMessage);
+                var localDraft = conversationUnsavedDrafts[saveKey];
+                if (localDraft) {
+                    histories[conversation.mode] = localDraft.messages.slice();
+                    renderCurrentHistory(conversation.mode);
+                } else {
+                    chatMessages.appendChild(loadingMessage);
+                }
 
-                Promise.resolve(pendingSave)
+                var waitTimer;
+                Promise.race([
+                    Promise.resolve(pendingSave),
+                    new Promise(function(resolve) {
+                        waitTimer = setTimeout(function() { resolve('save-still-pending'); }, 8000);
+                    })
+                ])
                     .then(function() {
                         if (token !== conversationLoadToken ||
                             requestAuthToken !== authStateToken ||
                             !currentUser || currentUser.id !== requestUserId) return null;
-                        if (conversationUnsavedDrafts[saveKey]) {
-                            throw new Error('This chat has unsaved messages.');
-                        }
-                        return fetch('/conversations/' + encodeURIComponent(conversation.id));
+                        var controller = new AbortController();
+                        var fetchTimer = setTimeout(function() { controller.abort(); }, 10000);
+                        return fetch('/conversations/' + encodeURIComponent(conversation.id), {
+                            signal: controller.signal
+                        }).finally(function() { clearTimeout(fetchTimer); });
                     })
                     .then(function(response) {
                         if (!response) return null;
@@ -5902,9 +6047,14 @@
                             requestAuthToken !== authStateToken ||
                             !currentUser || currentUser.id !== requestUserId) return;
                         updateConversationInList(data.conversation);
-                        histories[conversation.mode] = data.messages || [];
+                        var unsaved = conversationUnsavedDrafts[saveKey];
+                        histories[conversation.mode] = unsaved ? unsaved.messages.slice() : (data.messages || []);
                         saveHistories();
                         renderCurrentHistory(conversation.mode);
+                        if (unsaved) {
+                            errorMessage.textContent = 'This chat has unsaved local replies. They will retry when the connection returns; if the server chat changed, copy them to a new chat.';
+                            errorMessage.style.display = 'block';
+                        }
                         chatInput.focus();
                         if (window.innerWidth <= 768) closeConversationSidebar();
                     })
@@ -5914,12 +6064,19 @@
                             !currentUser || currentUser.id !== requestUserId) return;
                         var unsaved = conversationUnsavedDrafts[saveKey];
                         errorMessage.textContent = unsaved
-                            ? 'This chat could not be saved. Its messages are shown here; send another message to retry saving.'
-                            : error.message;
+                            ? 'This chat has unsaved local replies. Its messages are shown here; reconnect or select it again to retry.'
+                            : (error.name === 'AbortError' ? 'Chat took too long to load. Select it again to retry.' : error.message);
                         errorMessage.style.display = 'block';
-                        histories[conversation.mode] = unsaved ? unsaved.slice() : [];
-                        if (unsaved) saveHistories();
-                        renderCurrentHistory(conversation.mode);
+                        histories[conversation.mode] = unsaved ? unsaved.messages.slice() : [];
+                        if (unsaved) {
+                            saveHistories();
+                            renderCurrentHistory(conversation.mode);
+                        } else {
+                            loadingMessage.textContent = 'Unable to load chat. Select it again to retry.';
+                        }
+                    })
+                    .finally(function() {
+                        clearTimeout(waitTimer);
                     });
             }
 
@@ -6039,6 +6196,7 @@
                         conversations = conversations.filter(function(item) {
                             return String(item.id) !== String(conversationId);
                         });
+                        forgetConversationDraft(conversationId, conversationUnsavedDrafts[String(conversationId)], currentUser.id);
                         delete histories[conversation.mode];
                         var wasActive = String(activeConversationIds[conversation.mode]) === String(conversationId);
                         if (wasActive) {
@@ -6078,6 +6236,7 @@
                         if (requestAuthToken !== authStateToken ||
                             !currentUser || currentUser.id !== requestUserId) return;
                         conversations = data.conversations || [];
+                        restoreConversationDrafts();
                         loadActiveConversationIds();
                         modelModes.forEach(function(mode) {
                             var saved = conversationById(activeConversationIds[mode]);
@@ -6096,6 +6255,12 @@
                             histories[currentMode] = [];
                             renderCurrentHistory(currentMode);
                         }
+                        conversations.forEach(function(conversation) {
+                            if (String(conversation.id) !== String(activeConversationIds[currentMode]) &&
+                                conversationUnsavedDrafts[String(conversation.id)]) {
+                                retryConversationDraft(conversation.id);
+                            }
+                        });
                     })
                     .catch(function(error) {
                         conversationList.innerHTML = '';
@@ -6403,67 +6568,32 @@
                 if (!msgs || msgs.length === 0 || !conversationId) {
                     return Promise.resolve(null);
                 }
-                var saveKey = String(conversationId);
-                var requestAuthToken = authStateToken;
-                var requestUserId = currentUser.id;
                 var storedMessages = msgs.map(function(message) {
                     return {
                         role: message.role,
-                        content: message.content
+                        content: String(message.content || '').trim()
                     };
+                }).filter(function(message) {
+                    return (message.role === 'user' || message.role === 'assistant') && message.content;
                 });
-                conversationUnsavedDrafts[saveKey] = storedMessages;
-                var previousSave = conversationSaveQueues[saveKey] || Promise.resolve();
-                var queuedSave;
-                queuedSave = previousSave
-                    .catch(function() {})
-                    .then(function() {
-                        if (requestAuthToken !== authStateToken ||
-                            !currentUser || currentUser.id !== requestUserId) return null;
-                        return fetch('/conversations/save', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                mode: mode,
-                                conversation_id: conversationId,
-                                messages: storedMessages
-                            })
-                        });
-                    })
-                    .then(function(response) {
-                        if (!response) return null;
-                        return response.json().then(function(data) {
-                            if (!response.ok) throw new Error(data.error || 'Unable to save this chat.');
-                            return data;
-                        });
-                    })
-                    .then(function(data) {
-                        if (!data) return null;
-                        if (requestAuthToken === authStateToken &&
-                            currentUser && currentUser.id === requestUserId) {
-                            if (conversationUnsavedDrafts[saveKey] === storedMessages) {
-                                delete conversationUnsavedDrafts[saveKey];
-                            }
-                            if (data.conversation) updateConversationInList(data.conversation);
-                        }
-                        return data;
-                    })
-                    .catch(function(error) {
-                        if (requestAuthToken === authStateToken &&
-                            currentUser && currentUser.id === requestUserId) {
-                            errorMessage.textContent = error.message;
-                            errorMessage.style.display = 'block';
-                        }
-                        return null;
-                    })
-                    .finally(function() {
-                        if (conversationSaveQueues[saveKey] === queuedSave) {
-                            delete conversationSaveQueues[saveKey];
+                rememberConversationDraft(conversationId, mode, storedMessages);
+                return retryConversationDraft(conversationId);
+            }
+
+            window.addEventListener('online', function() {
+                if (authBootstrapFailed) {
+                    window.location.reload();
+                    return;
+                }
+                if (!currentUser) return;
+                Object.keys(conversationUnsavedDrafts).forEach(function(id) {
+                    retryConversationDraft(id).then(function() {
+                        if (String(activeConversationIds[currentMode]) === id && !isStreaming) {
+                            loadConversationById(id);
                         }
                     });
-                conversationSaveQueues[saveKey] = queuedSave;
-                return queuedSave;
-            }
+                });
+            });
 
             // ── Files Panel helpers ─────────────────────────────────────────
 
@@ -6682,6 +6812,7 @@
                          restoreLocalHistory();
                     }
                 }).catch(function(){
+                     authBootstrapFailed = true;
                      authStateToken++;
                      currentUser = null;
                      loadCurrentMode();
