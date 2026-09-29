@@ -11,7 +11,6 @@ import zipfile
 import io
 import sqlite3
 import time
-from concurrent.futures import ThreadPoolExecutor
 from html import escape as html_escape
 
 import requests
@@ -570,20 +569,14 @@ def fetch_duckduckgo_web(query, domains=None):
 
     results = []
     source_urls = []
-    # Read up to two pages at a time. Keep result order and try the next batch
-    # only when earlier URLs fail, rather than fetching all six unnecessarily.
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        for start in range(0, len(all_urls), 2):
-            urls = all_urls[start:start + 2]
-            for url, content in zip(urls, executor.map(scrape_url, urls)):
-                if content:
-                    label = next((d for d in preferred if d in url), url.split('/')[2] if '://' in url else url)
-                    results.append(f"[{label} — {url[:80]}]\n{content}")
-                    source_urls.append(url)
-                if len(results) >= 2:
-                    break
-            if len(results) >= 2:
-                break
+    for url in all_urls:
+        if len(results) >= 2:
+            break
+        content = scrape_url(url)
+        if content:
+            label = next((d for d in preferred if d in url), url.split('/')[2] if '://' in url else url)
+            results.append(f"[{label} — {url[:80]}]\n{content}")
+            source_urls.append(url)
     return results, source_urls
 
 def classify_query(query):
@@ -652,37 +645,23 @@ def search_and_scrape(query, category='general'):
     parts = []
     all_source_urls = []
 
-    def timed_fetch(name, fetch, *args, **kwargs):
-        started = time.monotonic()
-        try:
-            return fetch(*args, **kwargs)
-        finally:
-            logger.info("Web %s duration_ms=%.0f", name, (time.monotonic() - started) * 1000)
-
-    # Wikipedia, DDG Instant, and DDG HTML are independent network requests.
-    # Collect in the original order so context and citations remain stable.
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        wiki_future = executor.submit(timed_fetch, 'wikipedia', fetch_wikipedia, query) if sources['wikipedia'] else None
-        instant_future = executor.submit(timed_fetch, 'instant', fetch_duckduckgo_instant, query) if sources['ddg_instant'] else None
-        web_future = executor.submit(timed_fetch, 'pages', fetch_duckduckgo_web, query, domains=sources['domains'])
-        wiki = wiki_future.result() if wiki_future else ''
+    if sources['wikipedia']:
+        wiki = fetch_wikipedia(query)
         if wiki:
             parts.append(wiki)
-        ddg_instant = instant_future.result() if instant_future else ''
+    if sources['ddg_instant']:
+        ddg_instant = fetch_duckduckgo_instant(query)
         if ddg_instant:
             parts.append(ddg_instant)
-        web_pages, urls = web_future.result()
+    web_pages, urls = fetch_duckduckgo_web(query, domains=sources['domains'])
     parts.extend(web_pages)
     all_source_urls.extend(urls)
     combined = "\n\n".join(parts)
 
     if not combined.strip() and category != 'general':
         logger.warning(f"No context for category '{category}', retrying with general sources")
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            fallback_future = executor.submit(timed_fetch, 'fallback pages', fetch_duckduckgo_web, query, domains=None)
-            wiki_future = executor.submit(timed_fetch, 'fallback wikipedia', fetch_wikipedia, query)
-            fallback_pages, fallback_urls = fallback_future.result()
-            wiki_fallback = wiki_future.result()
+        fallback_pages, fallback_urls = fetch_duckduckgo_web(query, domains=None)
+        wiki_fallback = fetch_wikipedia(query)
         fallback_parts = ([wiki_fallback] if wiki_fallback else []) + fallback_pages
         all_source_urls.extend(fallback_urls)
         combined = "\n\n".join(fallback_parts)
@@ -1765,7 +1744,7 @@ def chat_stream():
             return stream_p3(messages, client_date=data.get('client_date'))
         if mode in P4_MODES:
             return stream_p4(mode, messages, client_date=data.get('client_date'))
-        return stream_p2(messages)
+        return stream_p2(messages, client_date=data.get('client_date'))
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -1778,44 +1757,6 @@ def make_stream_response(generator):
         mimetype='text/event-stream',
         headers={'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no'}
     )
-
-def ollama_stream_generator(model, messages):
-    """Stream from Ollama /api/chat, filtering hidden commands."""
-    try:
-        with requests.post(
-            "http://localhost:11434/api/chat",
-            json={
-                "model": model,
-                "messages": prepare_ollama_messages(messages),
-                "stream": True,
-                "options": {"num_ctx": 4608},
-            },
-            stream=True, timeout=240
-        ) as resp:
-            if resp.status_code != 200:
-                yield f"data: {json.dumps({'error': 'Failed to connect to AI model'})}\n\n"
-                return
-            for line in resp.iter_lines():
-                if line:
-                    try:
-                        chunk = json.loads(line.decode('utf-8'))
-                        if 'message' in chunk and 'content' in chunk['message']:
-                            raw = chunk['message']['content']
-                            clean = strip_search_commands(raw)
-                            if clean:
-                                yield f"data: {json.dumps({'text': clean})}\n\n"
-                        if chunk.get('done', False):
-                            yield f"data: {json.dumps({'done': True})}\n\n"
-                            break
-                    except json.JSONDecodeError:
-                        continue
-    except requests.exceptions.Timeout:
-        yield f"data: {json.dumps({'error': 'The model took too long to respond. Try a shorter question or ask again.'})}\n\n"
-    except requests.exceptions.ConnectionError:
-        yield f"data: {json.dumps({'error': 'Cannot connect to AI model. Please try again.'})}\n\n"
-    except Exception as e:
-        logger.error(f"Streaming error: {str(e)}")
-        yield f"data: {json.dumps({'error': 'Something went wrong. Please try again.'})}\n\n"
 
 P3_NUM_PREDICT = 1024
 FILE_START_MARKER = "<<<FILE:"
@@ -1943,9 +1884,14 @@ def ollama_p3_stream(model, messages, user_id=None, guest_key=None):
         text, file_infos = stream_filter.flush()
         yield text, file_infos, "Something went wrong. Please try again."
 
-def stream_p2(messages):
-    logger.info(f"P2: {len(messages)} messages")
-    return make_stream_response(ollama_stream_generator("poinsettia", messages))
+def stream_p2(messages, client_date=None):
+    return stream_research_model(
+        "poinsettia",
+        "Poinsettia 2.9",
+        messages,
+        client_date=client_date,
+        allow_audio=True,
+    )
 
 def stream_research_model(model, display_name, messages, client_date=None, allow_audio=True):
     if len(messages) > 8:
@@ -2022,7 +1968,7 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
             for q in searches:
                 yield status('Identifying topic…')
                 # Avoid a second Llama cold-start just to classify the query.
-                # The deterministic classifier keeps P3's retrieval routing
+                # The deterministic classifier keeps retrieval routing
                 # local and lets the model handle the actual answer once.
                 category = quick_classify(q)
                 yield status(f'Searching {category} sources…')
@@ -2034,7 +1980,7 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
                 if context:
                     web_parts.append(f"[Search: {q}]\n{context}")
             web_context = "\n\n---\n\n".join(web_parts)
-            logger.info(f"P3 web context: {len(web_context)} chars")
+            logger.info("%s web context: %d chars", display_name, len(web_context))
             if web_context:
                 system_parts.append(
                     "Real-time web results:\n\n" + web_context + "\n\n"
