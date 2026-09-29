@@ -1,6 +1,8 @@
 # Poinsettia
 Poinsettia is an offline AI tool completely free of usage tiers, subscriptions, credits, limits and all that yada-yada. While the code repository is public, we are governed under a EULA. Copyright 2026 @jitterbugmon (Jackson Reis) All rights reserved. Please agree within the app after creating an account. EULA and Priv. Policy in documentation. No forking please!
 
+PLEASE INSTALL THE OFFICIAL PYTHON FROM PYTHON.ORG BEFORE USE OF POINSETTIA!!!
+
 To launch Poinsettia, unzip the file, open the newly created folder, then the folder within that, then scroll down and double click on start-poinsettia.bat. Note: you may need to temporarily disable some of your computer's antivirus programs to run it. Not that Poinsettia will perform malicious activities on your computer, it's just that Windows often flags downloaded .bat files as malicious!
 END USER LICENSE AGREEMENT  
 Version 1.3  
