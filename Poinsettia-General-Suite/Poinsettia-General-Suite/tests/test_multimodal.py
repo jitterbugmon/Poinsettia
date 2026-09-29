@@ -1,5 +1,7 @@
+import json
 import unittest
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from flask import Response
 
@@ -109,6 +111,77 @@ class MultimodalMessageTests(unittest.TestCase):
             forwarded_messages[0]["images"], ["aW1hZ2U=", "UklGRg=="]
         )
         self.assertNotIn("attachments", forwarded_messages[0])
+
+    def test_p2_sends_image_and_audio_directly_to_poinsettia(self):
+        for attachment_field, payload in (
+            ("images", "aW1hZ2U="),
+            ("audio", "UklGRg=="),
+        ):
+            with self.subTest(attachment_field=attachment_field):
+                model_response = MagicMock(status_code=200)
+                model_response.__enter__.return_value = model_response
+                model_response.iter_lines.return_value = [
+                    json.dumps({"message": {"content": "Observed."}, "done": True}).encode()
+                ]
+                with patch.object(main, "get_current_user", return_value=self.authenticated_user), \
+                     patch.object(main, "generate_commands", return_value=([], None)), \
+                     patch.object(main.requests, "post", return_value=model_response) as post:
+                    response = self.client.post("/chat/stream", json={
+                        "mode": "p2", "messages": [
+                            {"role": "user", "content": "What is attached?",
+                             attachment_field: [payload]},
+                        ],
+                    })
+                    events = [
+                        json.loads(line[6:])
+                        for line in response.get_data(as_text=True).splitlines()
+                        if line.startswith("data: ")
+                    ]
+
+                self.assertEqual(post.call_count, 1)
+                request = post.call_args.kwargs["json"]
+                self.assertEqual(request["model"], "poinsettia")
+                self.assertEqual(request["messages"][-1]["images"], [payload])
+                self.assertEqual(
+                    "".join(event.get("text", "") for event in events), "Observed."
+                )
+
+    def test_p2_reports_model_rejection_without_dumping_raw_json(self):
+        failure = MagicMock(status_code=400)
+        failure.__enter__.return_value = failure
+        failure.json.return_value = {
+            "error": {
+                "code": 400,
+                "message": "Multimodal data provided, but model does not support multimodal requests.",
+            }
+        }
+        with patch.object(main, "get_current_user", return_value=self.authenticated_user), \
+             patch.object(main, "generate_commands", return_value=([], None)), \
+             patch.object(main.requests, "post", return_value=failure):
+            response = self.client.post("/chat/stream", json={
+                "mode": "p2", "messages": [
+                    {"role": "user", "content": "Describe this", "images": ["aW1hZ2U="]},
+                ],
+            })
+            events = [
+                json.loads(line[6:])
+                for line in response.get_data(as_text=True).splitlines()
+                if line.startswith("data: ")
+            ]
+
+        errors = [event["error"] for event in events if "error" in event]
+        self.assertEqual(len(errors), 1)
+        self.assertIn("Multimodal data provided", errors[0])
+        self.assertNotIn('{"error":', errors[0])
+        self.assertFalse(any(event.get("done") for event in events))
+
+    def test_p2_model_and_windows_bootstrap_use_e4b(self):
+        root = Path(main.__file__).resolve().parent
+        self.assertTrue((root / "Modelfile").read_text().startswith("FROM gemma4:e4b\n"))
+        self.assertIn(
+            'Base = "gemma4:e4b"; Name = "poinsettia"',
+            (root / "start_poinsettia.ps1").read_text(),
+        )
 
     def test_p4_rejects_audio_attachments(self):
         with patch.object(main, "get_current_user", return_value=self.authenticated_user):

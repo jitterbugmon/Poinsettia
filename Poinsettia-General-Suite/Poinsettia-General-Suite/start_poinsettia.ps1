@@ -201,7 +201,7 @@ function Prepare-Models {
     param([string]$Ollama)
 
     $models = @(
-        @{ Base = "llama3.2:3b"; Name = "poinsettia"; File = "Modelfile" },
+        @{ Base = "gemma4:e4b"; Name = "poinsettia"; File = "Modelfile" },
         @{ Base = "gemma4:12b"; Name = "p3"; File = "modelfile3" },
         @{ Base = "gemma4:26b"; Name = "p4-fax"; File = "modelfile4-fax" },
         @{ Base = "gemma4:31b"; Name = "p4-candor"; File = "modelfile4-candor" }

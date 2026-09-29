@@ -37,6 +37,46 @@ install requirements, prepare Ollama and the models, start Flask on
 Double-click `start_poinsettia.bat` again. Existing Python packages, Ollama,
 and models are reused; model preparation is safe to repeat.
 
+## Update an existing ZIP copy
+
+The ZIP launcher does **not** update application code automatically. To get new
+features such as Poinsettia 2 web search and downloadable files:
+
+1. Close Poinsettia and the launcher window. Do not update files while the app
+   is running; an already-running server on port 5000 will keep serving old code.
+2. Make a backup of your entire extracted Poinsettia folder. In particular,
+   `poinsettia.db` contains your accounts and chats, and `user_files` contains
+   generated files. Keep the backup until the update works.
+3. If Windows shows **Unblock** in the downloaded update ZIP's **Properties**,
+   select it before extraction. Extract the **Poinsettia Windows ZIP code
+   update** into that same folder, replacing code files when Windows asks. Do
+   not extract it into a second, nested Poinsettia folder. The code update
+   contains neither `poinsettia.db` nor `user_files`, so it does not replace
+   those data files.
+4. Double-click `start_poinsettia.bat` again. Refresh the chat page, select
+   Poinsettia 2, and ask a factual question. Search status should appear while
+   it retrieves results; source links appear under answers when pages are found.
+
+If Poinsettia still answers without sources, check `poinsettia-error.log` in
+`%LOCALAPPDATA%\Poinsettia\Bootstrap\`. A `Poinsettia 2.9 search_duration_ms`
+line shows that the new code ran; zero sources means it found no citable page
+URLs for that question. Nearby DuckDuckGo or Wikipedia warnings can explain
+whether a provider returned an empty page or failed.
+
+Search prefers sources suited to the question, including IMDb for films,
+Adafruit and Hacker News for technology, and Amazon for shopping. Reddit is
+eligible for discussions. These sites are not guaranteed to appear for every
+query. Some sites block automated page requests; in that case a result may be
+marked **Search-result snippet (full page unavailable)**. That text is from
+the search index, not a verified reading of the linked page.
+
+Poinsettia 2.9 uses the multimodal `gemma4:e4b` base. An updated ZIP copy
+recreates its `poinsettia` model from this base when you relaunch
+`start_poinsettia.bat`. The E4B download is about 9.6 GB and requires a
+compatible, up-to-date Ollama installation. Images and WAV audio are sent
+directly to P2, not through P3. If an attachment still fails, check
+`%LOCALAPPDATA%\Poinsettia\Bootstrap\poinsettia-error.log` for the model error.
+
 ## Troubleshooting
 
 ### Windows blocks the batch file

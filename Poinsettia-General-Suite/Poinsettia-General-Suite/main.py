@@ -16,7 +16,7 @@ from html import escape as html_escape
 import requests
 from flask import (Flask, request, render_template, jsonify, Response,
                    stream_with_context, session, send_file)
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 from bs4 import BeautifulSoup, Comment
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -104,11 +104,15 @@ CATEGORY_SOURCES = {
         'wikipedia': False, 'ddg_instant': False,
     },
     'science': {
-        'domains': ['ncbi.nlm.nih.gov', 'nature.com', 'wikipedia.org', 'sciencedaily.com', 'newscientist.com'],
+        'domains': ['ncbi.nlm.nih.gov', 'nature.com', 'science.org', 'arxiv.org',
+                    'wikipedia.org', 'sciencedaily.com', 'newscientist.com'],
         'wikipedia': True, 'ddg_instant': True,
     },
     'technology': {
-        'domains': ['stackoverflow.com', 'developer.mozilla.org', 'wikipedia.org', 'techcrunch.com', 'arstechnica.com'],
+        'domains': ['developer.mozilla.org', 'learn.adafruit.com', 'adafruit.com',
+                    'github.com', 'stackoverflow.com', 'news.ycombinator.com',
+                    'raspberrypi.com', 'arstechnica.com', 'techcrunch.com',
+                    'reddit.com', 'wikipedia.org'],
         'wikipedia': True, 'ddg_instant': True,
     },
     'sports': {
@@ -124,8 +128,14 @@ CATEGORY_SOURCES = {
         'wikipedia': False, 'ddg_instant': False,
     },
     'entertainment': {
-        'domains': ['wikipedia.org', 'apnews.com', 'variety.com', 'hollywoodreporter.com', 'rottentomatoes.com'],
+        'domains': ['imdb.com', 'themoviedb.org', 'rottentomatoes.com',
+                    'variety.com', 'hollywoodreporter.com', 'wikipedia.org', 'apnews.com'],
         'wikipedia': True, 'ddg_instant': True,
+    },
+    'shopping': {
+        'domains': ['adafruit.com', 'amazon.com', 'bestbuy.com', 'newegg.com',
+                    'bhphotovideo.com', 'ebay.com', 'etsy.com'],
+        'wikipedia': False, 'ddg_instant': False,
     },
     'health': {
         'domains': ['ncbi.nlm.nih.gov', 'webmd.com', 'mayoclinic.org', 'healthline.com', 'cdc.gov'],
@@ -133,7 +143,8 @@ CATEGORY_SOURCES = {
     },
     'general': {
         'domains': ['wikipedia.org', 'britannica.com', 'stackoverflow.com', 'reddit.com',
-                    '.gov', '.edu', 'bbc.com', 'reuters.com', 'apnews.com', 'nature.com'],
+                    'news.ycombinator.com', '.gov', '.edu', 'bbc.com', 'reuters.com',
+                    'apnews.com', 'nature.com'],
         'wikipedia': True, 'ddg_instant': True,
     },
 }
@@ -480,26 +491,42 @@ def extract_files_from_text(text, user_id=None, guest_key=None):
 
 def fetch_wikipedia(query):
     try:
+        quoted_title = re.search(r'["“]([^"”]{2,100})["”]', query)
+        film_query = bool(re.search(r'\b(movie|film)\b', query, re.IGNORECASE))
+        search_query = (
+            f"{quoted_title.group(1)} film"
+            if quoted_title and film_query else query
+        )
         search = requests.get(
             "https://en.wikipedia.org/w/api.php",
-            params={'action': 'query', 'list': 'search', 'srsearch': query,
-                    'format': 'json', 'srlimit': 1},
+            params={'action': 'query', 'list': 'search', 'srsearch': search_query,
+                    'format': 'json', 'srlimit': 3},
             headers=HEADERS, timeout=8
         ).json()
         hits = search.get('query', {}).get('search', [])
         if not hits:
-            return ""
+            return "", ""
+        if quoted_title:
+            requested = quoted_title.group(1).casefold()
+            hits = [hit for hit in hits if requested in hit.get('title', '').casefold()]
+            if not hits:
+                logger.info("Wikipedia returned no matching title for quoted query")
+                return "", ""
         title = hits[0]['title']
         summary = requests.get(
-            f"https://en.wikipedia.org/api/rest_v1/page/summary/{title.replace(' ', '_')}",
+            f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(title.replace(' ', '_'), safe='()')}",
             headers=HEADERS, timeout=8
         ).json()
         extract = summary.get('extract', '')
         if extract:
-            return f"[Wikipedia — {title}]\n{extract[:1500]}"
+            source_url = (
+                summary.get('content_urls', {}).get('desktop', {}).get('page')
+                or f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'), safe='()')}"
+            )
+            return f"[Wikipedia — {title}]\n{extract[:1500]}", source_url
     except Exception as e:
         logger.warning(f"Wikipedia fetch failed: {e}")
-    return ""
+    return "", ""
 
 def fetch_duckduckgo_instant(query):
     try:
@@ -511,19 +538,28 @@ def fetch_duckduckgo_instant(query):
         result = data.get('Answer', '') or data.get('AbstractText', '')
         source = data.get('AbstractURL', '') or 'DuckDuckGo'
         if result:
-            return f"[{source}]\n{result[:1000]}"
+            source_url = source if urlparse(source).scheme in ('http', 'https') else ''
+            return f"[{source}]\n{result[:1000]}", source_url
     except Exception as e:
         logger.warning(f"DuckDuckGo instant failed: {e}")
-    return ""
+    return "", ""
 
 def scrape_url(url):
     try:
         resp = requests.get(url, headers=HEADERS, timeout=8)
+        if resp.status_code != 200:
+            logger.info("Source page returned HTTP %s: %s", resp.status_code, url)
+            return ""
         soup = BeautifulSoup(resp.text, 'html.parser')
         for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'form']):
             tag.decompose()
         text = soup.get_text(separator=' ', strip=True)
         text = re.sub(r'\s+', ' ', text)
+        if any(phrase in text[:500].lower() for phrase in (
+            'verify you are a human', 'enable javascript and cookies to continue',
+            'sorry, we just need to make sure you are not a robot',
+        )):
+            return ""
         return text[:1800]
     except Exception as e:
         logger.warning(f"Scrape failed for {url}: {e}")
@@ -531,52 +567,116 @@ def scrape_url(url):
 
 _JUNK_DOMAINS = {
     'pinterest.com', 'instagram.com', 'facebook.com', 'twitter.com', 'x.com',
-    'tiktok.com', 'youtube.com', 'amazon.com', 'ebay.com', 'etsy.com',
-    'yelp.com', 'tripadvisor.com', 'linkedin.com', 'quora.com',
+    'tiktok.com', 'youtube.com', 'yelp.com', 'tripadvisor.com',
+    'linkedin.com', 'quora.com',
 }
 
-def fetch_duckduckgo_web(query, domains=None):
-    preferred = set(domains) if domains else set()
-    all_urls = []
-    try:
-        resp = requests.post(
-            "https://html.duckduckgo.com/html/",
-            data={'q': query},
-            headers=HEADERS,
-            timeout=10
-        )
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        for link_tag in soup.select('.result__a'):
-            href = link_tag.get('href', '')
-            if 'uddg=' in href:
-                try:
-                    actual_url = unquote(href.split('uddg=')[-1].split('&')[0])
-                except Exception:
-                    continue
-            elif href.startswith('http'):
-                actual_url = href
-            else:
-                continue
-            if not any(junk in actual_url for junk in _JUNK_DOMAINS):
-                all_urls.append(actual_url)
-            if len(all_urls) >= 6:
-                break
-    except Exception as e:
-        logger.warning(f"DuckDuckGo HTML search failed: {e}")
-        return []
+def _domain_matches(url, domain):
+    host = (urlparse(url).hostname or '').lower()
+    domain = domain.lower()
+    return host.endswith(domain) if domain.startswith('.') else (
+        host == domain or host.endswith('.' + domain)
+    )
 
-    all_urls.sort(key=lambda u: 0 if any(d in u for d in preferred) else 1)
+def fetch_duckduckgo_web(query, domains=None):
+    preferred = list(domains or [])
+    candidates = {}
+    # Some networks return an empty page for the POST endpoint without raising
+    # an error. Try the HTML GET and then Lite before giving up on page links.
+    for name, method, endpoint, params, selector in (
+        ('HTML POST', requests.post, 'https://html.duckduckgo.com/html/',
+         {'data': {'q': query}}, '.result__a'),
+        ('HTML GET', requests.get, 'https://html.duckduckgo.com/html/',
+         {'params': {'q': query}}, '.result__a'),
+        ('Lite GET', requests.get, 'https://lite.duckduckgo.com/lite/',
+         {'params': {'q': query}}, '.result-link'),
+    ):
+        try:
+            resp = method(endpoint, headers=HEADERS, timeout=10, **params)
+            if resp.status_code != 200:
+                logger.warning("DuckDuckGo %s returned HTTP %s", name, resp.status_code)
+                continue
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            links = soup.select(selector)
+            if not links:
+                logger.warning("DuckDuckGo %s returned no result links", name)
+                continue
+            for link_tag in links:
+                href = link_tag.get('href', '')
+                if 'uddg=' in href:
+                    actual_url = unquote(href.split('uddg=')[-1].split('&')[0])
+                elif href.startswith('http'):
+                    actual_url = href
+                else:
+                    continue
+                if urlparse(actual_url).scheme not in ('http', 'https'):
+                    continue
+                if any(_domain_matches(actual_url, junk) for junk in _JUNK_DOMAINS):
+                    continue
+                result_block = link_tag.find_parent(class_='result__body')
+                snippet_tag = result_block.select_one('.result__snippet') if result_block else None
+                snippet = snippet_tag.get_text(' ', strip=True) if snippet_tag else ''
+                candidates.setdefault(actual_url, snippet)
+                if len(candidates) >= 8:
+                    break
+            if candidates:
+                break
+            logger.warning("DuckDuckGo %s returned no usable result URLs", name)
+        except Exception as e:
+            logger.warning("DuckDuckGo %s search failed: %s", name, e)
+
+    named_sites = {
+        'imdb.com': ('imdb',), 'amazon.com': ('amazon',),
+        'adafruit.com': ('adafruit',), 'learn.adafruit.com': ('adafruit',),
+        'news.ycombinator.com': ('hacker news', 'ycombinator'),
+        'reddit.com': ('reddit',),
+    }
+    query_lower = query.lower()
+    def source_rank(url):
+        is_preferred = any(_domain_matches(url, domain) for domain in preferred)
+        explicitly_requested = any(
+            any(name in query_lower for name in names)
+            for domain, names in named_sites.items()
+            if _domain_matches(url, domain)
+        )
+        # Preserve DuckDuckGo's order within each preference group.
+        return (0 if explicitly_requested else 1, 0 if is_preferred else 1)
+    ranked_urls = sorted(candidates, key=source_rank)
 
     results = []
     source_urls = []
-    for url in all_urls:
+    deferred_snippets = []
+    for index, url in enumerate(ranked_urls):
         if len(results) >= 2:
             break
         content = scrape_url(url)
+        snippet_only = False
+        if not content and len(candidates[url]) >= 50:
+            content = f"Search-result snippet (full page unavailable): {candidates[url][:550]}"
+            snippet_only = True
         if content:
-            label = next((d for d in preferred if d in url), url.split('/')[2] if '://' in url else url)
+            same_host = (
+                bool(source_urls)
+                and urlparse(url).hostname == urlparse(source_urls[0]).hostname
+            )
+            another_site_remaining = any(
+                urlparse(other).hostname != urlparse(url).hostname
+                for other in ranked_urls[index + 1:]
+            )
+            if snippet_only and same_host and another_site_remaining:
+                deferred_snippets.append((url, content))
+                continue
+            label = next((d for d in preferred if _domain_matches(url, d)),
+                         urlparse(url).hostname or url)
             results.append(f"[{label} — {url[:80]}]\n{content}")
             source_urls.append(url)
+    for url, content in deferred_snippets:
+        if len(results) >= 2:
+            break
+        label = next((d for d in preferred if _domain_matches(url, d)),
+                     urlparse(url).hostname or url)
+        results.append(f"[{label} — {url[:80]}]\n{content}")
+        source_urls.append(url)
     return results, source_urls
 
 def classify_query(query):
@@ -591,6 +691,7 @@ def classify_query(query):
         "- Medical symptoms, drugs, diseases, public health → health\n"
         "- Scientific research, climate data, biology, physics, chemistry → science\n"
         "- Programming, software, hardware, AI tools, apps → technology\n"
+        "- Products, buying advice, stores, product prices → shopping\n"
         "- Stocks, crypto, interest rates, inflation, GDP → finance\n"
         "- Movies, TV shows, music, celebrities, games, books → entertainment\n"
         "- Sports scores, teams, athletes, leagues → sports\n"
@@ -622,11 +723,25 @@ def classify_query(query):
 
 def quick_classify(query):
     q = query.lower()
+    if 'hacker news' in q or 'ycombinator' in q:
+        return 'technology'
     if any(w in q for w in ['news','latest','breaking','wildfire','fire','flood','earthquake','hurricane','war','attack','conflict','strike','invasion','shooting','crash']):
         return 'news'
     if any(w in q for w in ['president','election','congress','senate','parliament','prime minister','governor','politician','policy','law','bill','vote','epa','fda','fbi','cia','pentagon','nato','government','administration']):
         return 'politics'
-    if any(w in q for w in ['stock','bitcoin','crypto','market','price','inflation','gdp','interest rate','recession','nasdaq','dow','s&p','earnings','revenue','ipo']):
+    if any(w in q for w in ['stock','bitcoin','crypto','inflation','gdp','interest rate','recession','nasdaq','dow','s&p','earnings','revenue','ipo']):
+        return 'finance'
+    if any(w in q for w in ['buy ', 'purchase ', 'where to buy', 'shopping', 'product',
+                            'on amazon', 'amazon.com', 'bestbuy', 'newegg', 'ebay', 'etsy']):
+        return 'shopping'
+    if ('amazon' in q or 'adafruit' in q) and \
+            any(w in q for w in ['price', 'cost', 'deal', 'order', 'review']):
+        return 'shopping'
+    if any(w in q for w in ['price', 'cost', 'recommend', 'best ', 'compare', 'review']) and \
+            any(w in q for w in ['laptop', 'headphones', 'camera', 'keyboard',
+                                  'raspberry pi', 'microcontroller', 'adafruit kit']):
+        return 'shopping'
+    if any(w in q for w in ['market', 'price']):
         return 'finance'
     if any(w in q for w in ['nba','nfl','mlb','nhl','fifa','score','match','game','championship','player','team','league','tournament','athlete','sport']):
         return 'sports'
@@ -634,7 +749,7 @@ def quick_classify(query):
         return 'entertainment'
     if any(w in q for w in ['symptom','treatment','disease','drug','vaccine','health','medicine','cancer','virus','hospital','doctor','clinical','fda approval','medication']):
         return 'health'
-    if any(w in q for w in ['code','programming','software','error','bug','python','javascript','api','library','framework','developer','github','database','algorithm']):
+    if any(w in q for w in ['code','programming','software','error','bug','python','javascript','api','library','framework','developer','github','database','algorithm','adafruit','hacker news','ycombinator']):
         return 'technology'
     if any(w in q for w in ['study','research','climate','biology','physics','chemistry','astronomy','geology','experiment','journal','scientist','discovery']):
         return 'science'
@@ -642,31 +757,46 @@ def quick_classify(query):
 
 def search_and_scrape(query, category='general'):
     sources = CATEGORY_SOURCES.get(category, CATEGORY_SOURCES['general'])
-    parts = []
-    all_source_urls = []
+    segments = []
 
     if sources['wikipedia']:
-        wiki = fetch_wikipedia(query)
+        wiki, wiki_url = fetch_wikipedia(query)
         if wiki:
-            parts.append(wiki)
+            segments.append((wiki, wiki_url))
     if sources['ddg_instant']:
-        ddg_instant = fetch_duckduckgo_instant(query)
+        ddg_instant, instant_url = fetch_duckduckgo_instant(query)
         if ddg_instant:
-            parts.append(ddg_instant)
+            segments.append((ddg_instant, instant_url))
     web_pages, urls = fetch_duckduckgo_web(query, domains=sources['domains'])
-    parts.extend(web_pages)
-    all_source_urls.extend(urls)
-    combined = "\n\n".join(parts)
+    if web_pages:
+        # Leave room for page evidence rather than letting a long encyclopedia
+        # extract crowd out all the requested site results.
+        segments = [(text[:600] if text.startswith('[Wikipedia — ') else text[:300], url)
+                    for text, url in segments]
+    segments.extend((page[:650], url) for page, url in zip(web_pages, urls))
 
-    if not combined.strip() and category != 'general':
+    if not segments and category != 'general':
         logger.warning(f"No context for category '{category}', retrying with general sources")
         fallback_pages, fallback_urls = fetch_duckduckgo_web(query, domains=None)
-        wiki_fallback = fetch_wikipedia(query)
-        fallback_parts = ([wiki_fallback] if wiki_fallback else []) + fallback_pages
-        all_source_urls.extend(fallback_urls)
-        combined = "\n\n".join(fallback_parts)
+        wiki_fallback, wiki_url = fetch_wikipedia(query)
+        if wiki_fallback:
+            segments.append((wiki_fallback, wiki_url))
+        segments.extend((page[:650], url) for page, url in zip(fallback_pages, fallback_urls))
 
-    return combined[:1200], all_source_urls
+    # Emit only links whose content was actually included in the bounded prompt.
+    context_parts = []
+    context_urls = []
+    remaining = 2000 if web_pages else 1200
+    for text, url in segments:
+        separator = 2 if context_parts else 0
+        if remaining <= separator:
+            break
+        excerpt = text[:remaining - separator]
+        context_parts.append(excerpt)
+        remaining -= len(excerpt) + separator
+        if url and url not in context_urls:
+            context_urls.append(url)
+    return "\n\n".join(context_parts), context_urls
 
 # ── Hidden Command Interception ────────────────────────────────────────────────
 
@@ -1838,11 +1968,7 @@ def ollama_p3_stream(model, messages, user_id=None, guest_key=None):
             stream=True, timeout=240
         ) as resp:
             if resp.status_code != 200:
-                detail = ""
-                try:
-                    detail = resp.json().get("error", "")
-                except (ValueError, requests.RequestException):
-                    detail = ""
+                detail = ollama_error_detail(resp)
                 if detail:
                     logger.error("Ollama model %s returned HTTP %s: %s", model, resp.status_code, detail)
                     yield "", [], f"AI model '{model}' is unavailable: {detail}"
@@ -1883,6 +2009,15 @@ def ollama_p3_stream(model, messages, user_id=None, guest_key=None):
         logger.error(f"ollama_p3_stream error: {e}")
         text, file_infos = stream_filter.flush()
         yield text, file_infos, "Something went wrong. Please try again."
+
+def ollama_error_detail(response):
+    try:
+        error = response.json().get("error", "")
+    except (ValueError, requests.RequestException):
+        return ""
+    if isinstance(error, dict):
+        error = error.get("message") or error.get("code") or ""
+    return str(error) if error else ""
 
 def stream_p2(messages, client_date=None):
     return stream_research_model(
@@ -1983,8 +2118,14 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
             logger.info("%s web context: %d chars", display_name, len(web_context))
             if web_context:
                 system_parts.append(
-                    "Real-time web results:\n\n" + web_context + "\n\n"
-                    "Use the above to answer accurately and naturally."
+                    "Real-time web results (search already completed):\n\n"
+                    + web_context + "\n\n"
+                    "Use these results to answer the question directly. Do not say you "
+                    "cannot search or ask the user to search. If the results do not "
+                    "address the question, say what remains unverified instead of guessing. "
+                    "Forum posts are personal reports, and product listings are seller claims. "
+                    "A result labeled 'Search-result snippet' is from the search index; do not "
+                    "claim you opened its full page."
                 )
 
         has_context = any(
@@ -1993,6 +2134,7 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
         )
         if not has_context:
             if searches:
+                yield status("No usable search results found")
                 system_parts.append(
                     "Web search returned no usable results for this query. "
                     "Answer from general knowledge if useful, but clearly say when "
