@@ -70,5 +70,16 @@ The most useful files are:
 - `ollama.log`
 - `ollama-error.log`
 
+### "Did not find executable" while installing Python requirements
+
+An older `.poinsettia-venv` folder may still point to a Python installation
+that was removed or moved. The updated launcher detects this and rebuilds that
+generated environment before installing requirements.
+
+If you are running an older ZIP copy, close the launcher, delete **only**
+`.poinsettia-venv` from the extracted folder beside `start_poinsettia.bat`,
+then run the batch file again. Python packages will be reinstalled. This does
+not delete your chats, generated files, or Ollama models.
+
 Poinsettia 4.0 Fax and Candor are available immediately. The first run
 prepares both P4 models along with P2 and P3.

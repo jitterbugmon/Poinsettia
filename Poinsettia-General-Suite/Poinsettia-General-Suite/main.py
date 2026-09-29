@@ -10,6 +10,8 @@ import mimetypes
 import zipfile
 import io
 import sqlite3
+import time
+from concurrent.futures import ThreadPoolExecutor
 from html import escape as html_escape
 
 import requests
@@ -146,13 +148,6 @@ def get_logo_base64():
     except Exception as e:
         logger.error(f"Error loading logo: {e}")
         return ""
-
-def check_internet():
-    try:
-        requests.get("https://www.google.com", timeout=5, headers=HEADERS)
-        return True
-    except Exception:
-        return False
 
 def get_current_user():
     """Return the logged-in user dict, or None for guests."""
@@ -575,14 +570,20 @@ def fetch_duckduckgo_web(query, domains=None):
 
     results = []
     source_urls = []
-    for url in all_urls:
-        if len(results) >= 2:
-            break
-        content = scrape_url(url)
-        if content:
-            label = next((d for d in preferred if d in url), url.split('/')[2] if '://' in url else url)
-            results.append(f"[{label} — {url[:80]}]\n{content}")
-            source_urls.append(url)
+    # Read up to two pages at a time. Keep result order and try the next batch
+    # only when earlier URLs fail, rather than fetching all six unnecessarily.
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        for start in range(0, len(all_urls), 2):
+            urls = all_urls[start:start + 2]
+            for url, content in zip(urls, executor.map(scrape_url, urls)):
+                if content:
+                    label = next((d for d in preferred if d in url), url.split('/')[2] if '://' in url else url)
+                    results.append(f"[{label} — {url[:80]}]\n{content}")
+                    source_urls.append(url)
+                if len(results) >= 2:
+                    break
+            if len(results) >= 2:
+                break
     return results, source_urls
 
 def classify_query(query):
@@ -651,23 +652,37 @@ def search_and_scrape(query, category='general'):
     parts = []
     all_source_urls = []
 
-    if sources['wikipedia']:
-        wiki = fetch_wikipedia(query)
+    def timed_fetch(name, fetch, *args, **kwargs):
+        started = time.monotonic()
+        try:
+            return fetch(*args, **kwargs)
+        finally:
+            logger.info("Web %s duration_ms=%.0f", name, (time.monotonic() - started) * 1000)
+
+    # Wikipedia, DDG Instant, and DDG HTML are independent network requests.
+    # Collect in the original order so context and citations remain stable.
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        wiki_future = executor.submit(timed_fetch, 'wikipedia', fetch_wikipedia, query) if sources['wikipedia'] else None
+        instant_future = executor.submit(timed_fetch, 'instant', fetch_duckduckgo_instant, query) if sources['ddg_instant'] else None
+        web_future = executor.submit(timed_fetch, 'pages', fetch_duckduckgo_web, query, domains=sources['domains'])
+        wiki = wiki_future.result() if wiki_future else ''
         if wiki:
             parts.append(wiki)
-    if sources['ddg_instant']:
-        ddg_instant = fetch_duckduckgo_instant(query)
+        ddg_instant = instant_future.result() if instant_future else ''
         if ddg_instant:
             parts.append(ddg_instant)
-    web_pages, urls = fetch_duckduckgo_web(query, domains=sources['domains'])
+        web_pages, urls = web_future.result()
     parts.extend(web_pages)
     all_source_urls.extend(urls)
     combined = "\n\n".join(parts)
 
     if not combined.strip() and category != 'general':
         logger.warning(f"No context for category '{category}', retrying with general sources")
-        fallback_pages, fallback_urls = fetch_duckduckgo_web(query, domains=None)
-        wiki_fallback = fetch_wikipedia(query)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            fallback_future = executor.submit(timed_fetch, 'fallback pages', fetch_duckduckgo_web, query, domains=None)
+            wiki_future = executor.submit(timed_fetch, 'fallback wikipedia', fetch_wikipedia, query)
+            fallback_pages, fallback_urls = fallback_future.result()
+            wiki_fallback = wiki_future.result()
         fallback_parts = ([wiki_fallback] if wiki_fallback else []) + fallback_pages
         all_source_urls.extend(fallback_urls)
         combined = "\n\n".join(fallback_parts)
@@ -1939,14 +1954,6 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
         messages = messages[1:]
     logger.info(f"{display_name}: {len(messages)} messages")
 
-    if not check_internet():
-        def offline():
-            msg = (f"{display_name} requires a working internet connection, "
-                   "please check your router and Wi-Fi and try again.")
-            yield f"data: {json.dumps({'text': msg, 'done': False})}\n\n"
-            yield f"data: {json.dumps({'done': True})}\n\n"
-        return make_stream_response(offline())
-
     searches, weather_city_raw = generate_commands(messages)
 
     if isinstance(weather_city_raw, tuple):
@@ -1996,7 +2003,9 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
         if weather_city:
             label = weather_city if isinstance(weather_city, str) else weather_city
             yield status(f"Fetching weather for {label}…")
+            weather_started = time.monotonic()
             weather_data = fetch_weather_forecast(weather_city, weather_days)
+            logger.info("%s weather_duration_ms=%.0f", display_name, (time.monotonic() - weather_started) * 1000)
             if weather_data:
                 yield f"data: {json.dumps({'weather': weather_data, 'done': False})}\n\n"
                 yield f"data: {json.dumps({'done': True})}\n\n"
@@ -2017,7 +2026,10 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
                 # local and lets the model handle the actual answer once.
                 category = quick_classify(q)
                 yield status(f'Searching {category} sources…')
+                search_started = time.monotonic()
                 context, src_urls = search_and_scrape(q, category)
+                logger.info("%s search_duration_ms=%.0f sources=%d", display_name,
+                            (time.monotonic() - search_started) * 1000, len(src_urls))
                 all_source_urls.extend(src_urls)
                 if context:
                     web_parts.append(f"[Search: {q}]\n{context}")
@@ -2034,12 +2046,17 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
             for p in system_parts
         )
         if not has_context:
-            system_parts.append(
-                "No real-time data is available for this query. "
-                "Answer from your training knowledge. "
-                "Do NOT say you cannot access the internet or lack real-time data — "
-                "just answer the question directly and naturally."
-            )
+            if searches:
+                system_parts.append(
+                    "Web search returned no usable results for this query. "
+                    "Answer from general knowledge if useful, but clearly say when "
+                    "a current fact could not be verified. Do not invent live facts."
+                )
+            else:
+                system_parts.append(
+                    "No real-time data is needed for this query. "
+                    "Answer directly from your knowledge."
+                )
 
         yield status("Generating response…")
         system_message = {'role': 'system', 'content': "\n\n".join(system_parts)}
@@ -2051,18 +2068,26 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
             yield f"data: {json.dumps({'sources': all_source_urls})}\n\n"
 
         model_output_seen = False
-        for text, file_infos, error in ollama_p3_stream(
-            model, p3_messages, user_id=user_id, guest_key=guest_key
-        ):
-            for fi in file_infos:
-                model_output_seen = True
-                yield f"data: {json.dumps({'file': fi})}\n\n"
-            if text:
-                model_output_seen = True
-                yield f"data: {json.dumps({'text': text, 'done': False})}\n\n"
-            if error and not model_output_seen:
-                yield f"data: {json.dumps({'error': error})}\n\n"
-                return
+        model_started = time.monotonic()
+        try:
+            for text, file_infos, error in ollama_p3_stream(
+                model, p3_messages, user_id=user_id, guest_key=guest_key
+            ):
+                if (text or file_infos) and not model_output_seen:
+                    logger.info("%s model_first_output_ms=%.0f", display_name,
+                                (time.monotonic() - model_started) * 1000)
+                for fi in file_infos:
+                    model_output_seen = True
+                    yield f"data: {json.dumps({'file': fi})}\n\n"
+                if text:
+                    model_output_seen = True
+                    yield f"data: {json.dumps({'text': text, 'done': False})}\n\n"
+                if error and not model_output_seen:
+                    yield f"data: {json.dumps({'error': error})}\n\n"
+                    return
+        finally:
+            logger.info("%s model_duration_ms=%.0f", display_name,
+                        (time.monotonic() - model_started) * 1000)
 
         if not model_output_seen:
             yield f"data: {json.dumps({'error': f'Model {model} returned an empty response. Please try again.'})}\n\n"

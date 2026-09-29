@@ -65,6 +65,25 @@ function Invoke-Python {
     }
 }
 
+function Test-VenvPython {
+    param([string]$Path)
+    if (!(Test-Path $Path)) {
+        return $false
+    }
+    # python.exe may still exist after its base interpreter was uninstalled.
+    # Running it catches that case before pip or the site is started.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "SilentlyContinue"
+        & $Path -c "import sys, pip; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)" 2>$null | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 function Install-Python {
     $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
     if ($winget) {
@@ -204,9 +223,17 @@ if (!$python) {
 }
 
 $venvPython = Join-Path $VenvRoot "Scripts\python.exe"
-if (!(Test-Path $venvPython)) {
-    Write-Host "Creating the Poinsettia Python environment..."
-    Invoke-Python -Python $python -Arguments @("-m", "venv", $VenvRoot)
+if (!(Test-VenvPython -Path $venvPython)) {
+    if (Test-Path $VenvRoot) {
+        Write-Host "The existing Python environment is broken. Rebuilding it..."
+        Invoke-Python -Python $python -Arguments @("-m", "venv", "--clear", $VenvRoot)
+    } else {
+        Write-Host "Creating the Poinsettia Python environment..."
+        Invoke-Python -Python $python -Arguments @("-m", "venv", $VenvRoot)
+    }
+    if (!(Test-VenvPython -Path $venvPython)) {
+        throw "Could not create a working Python environment at $VenvRoot."
+    }
 }
 
 Write-Host "Installing Python requirements..."
