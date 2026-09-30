@@ -4533,6 +4533,17 @@
                 let fullText = '';
                 let pendingSources = [];
                 let thinkingRemoved = false;
+                let textRenderFrame = null;
+                function renderStreamText() {
+                    textRenderFrame = null;
+                    textSpan.innerHTML = formatAssistantText(fullText);
+                    scrollToBottom();
+                }
+                function scheduleStreamTextRender() {
+                    if (textRenderFrame === null) {
+                        textRenderFrame = window.requestAnimationFrame(renderStreamText);
+                    }
+                }
                 let waitingInvite = null;
                 let waitingTimer = window.setTimeout(function() {
                     if (!isStreaming) return;
@@ -4560,6 +4571,10 @@
 
                 function finishStreaming() {
                     if (!isStreaming) return;
+                    if (textRenderFrame !== null) {
+                        window.cancelAnimationFrame(textRenderFrame);
+                        renderStreamText();
+                    }
                     removeThinking();
                     cursor.remove();
                     isStreaming = false;
@@ -4659,8 +4674,7 @@
                             if (data.text) {
                                 removeThinking();
                                 fullText += data.text;
-                                textSpan.innerHTML = formatAssistantText(fullText);
-                                scrollToBottom();
+                                scheduleStreamTextRender();
                             }
 
                             if (data.done) {

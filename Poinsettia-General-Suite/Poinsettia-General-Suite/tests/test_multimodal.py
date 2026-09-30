@@ -1,3 +1,4 @@
+import base64
 import json
 import unittest
 from pathlib import Path
@@ -112,24 +113,25 @@ class MultimodalMessageTests(unittest.TestCase):
         )
         self.assertNotIn("attachments", forwarded_messages[0])
 
-    def test_p2_sends_image_and_audio_directly_to_poinsettia(self):
-        for attachment_field, payload in (
-            ("images", "aW1hZ2U="),
-            ("audio", "UklGRg=="),
-        ):
-            with self.subTest(attachment_field=attachment_field):
+    def test_p2_images_use_p3_evidence_then_p2_answer_without_raw_images(self):
+        wav = base64.b64encode(b'RIFF\x24\x00\x00\x00WAVE').decode()
+        for media in (["aW1hZ2U="], ["aW1hZ2U=", wav]):
+            with self.subTest(media=media):
+                observation = MagicMock(status_code=200)
+                observation.json.return_value = {
+                    "message": {"content": "A robot points toward soldiers on a beach."}
+                }
                 model_response = MagicMock(status_code=200)
                 model_response.__enter__.return_value = model_response
                 model_response.iter_lines.return_value = [
-                    json.dumps({"message": {"content": "Observed."}, "done": True}).encode()
+                    json.dumps({"message": {"content": "A robot and soldiers."}, "done": True}).encode()
                 ]
                 with patch.object(main, "get_current_user", return_value=self.authenticated_user), \
-                     patch.object(main, "generate_commands", return_value=([], None)), \
-                     patch.object(main.requests, "post", return_value=model_response) as post:
+                     patch.object(main.requests, "post",
+                                  side_effect=[observation, model_response]) as post:
                     response = self.client.post("/chat/stream", json={
                         "mode": "p2", "messages": [
-                            {"role": "user", "content": "What is attached?",
-                             attachment_field: [payload]},
+                            {"role": "user", "content": "What is in this image?", "images": media},
                         ],
                     })
                     events = [
@@ -137,14 +139,129 @@ class MultimodalMessageTests(unittest.TestCase):
                         for line in response.get_data(as_text=True).splitlines()
                         if line.startswith("data: ")
                     ]
+                self.assertEqual(post.call_count, 2)
+                vision = post.call_args_list[0].kwargs["json"]
+                answer = post.call_args_list[1].kwargs["json"]
+                self.assertEqual(vision["model"], main.P3_MODEL)
+                self.assertEqual(vision["messages"][-1]["images"], ["aW1hZ2U="])
+                self.assertIs(vision["think"], False)
+                self.assertEqual(answer["model"], "poinsettia")
+                self.assertIn("A robot points", answer["messages"][-1]["content"])
+                self.assertEqual(answer["messages"][-1].get("images", []), [wav] if len(media) > 1 else [])
+                self.assertEqual(
+                    "".join(event.get("text", "") for event in events),
+                    "Poinsettia 3 inspected the image for this Poinsettia 2 answer.\n\nA robot and soldiers.",
+                )
+                self.assertFalse(any("error" in event for event in events))
+                self.assertTrue(any(event.get("done") for event in events))
 
+    def test_p2_audio_and_text_only_do_not_invoke_p3_vision(self):
+        wav = base64.b64encode(b'RIFF\x24\x00\x00\x00WAVE').decode()
+        for message in (
+            {"role": "user", "content": "What did they say?", "audio": [wav]},
+            {"role": "user", "content": "Hello"},
+        ):
+            with self.subTest(message=message):
+                model_response = MagicMock(status_code=200)
+                model_response.__enter__.return_value = model_response
+                model_response.iter_lines.return_value = [
+                    json.dumps({"message": {"content": "Hello."}, "done": True}).encode()
+                ]
+                with patch.object(main, "get_current_user", return_value=self.authenticated_user), \
+                     patch.object(main, "generate_commands", return_value=([], None)), \
+                     patch.object(main.requests, "post", return_value=model_response) as post:
+                    response = self.client.post("/chat/stream", json={
+                        "mode": "p2", "messages": [message],
+                    })
+                    response.get_data()
                 self.assertEqual(post.call_count, 1)
                 request = post.call_args.kwargs["json"]
                 self.assertEqual(request["model"], "poinsettia")
-                self.assertEqual(request["messages"][-1]["images"], [payload])
-                self.assertEqual(
-                    "".join(event.get("text", "") for event in events), "Observed."
-                )
+                self.assertEqual(request["messages"][-1].get("images", []),
+                                 [wav] if "audio" in message else [])
+
+    def test_p2_image_fails_closed_if_p3_cannot_observe_it(self):
+        failure = MagicMock(status_code=400)
+        failure.json.return_value = {"error": {"message": "Image processing unavailable"}}
+        with patch.object(main, "get_current_user", return_value=self.authenticated_user), \
+             patch.object(main.requests, "post", return_value=failure) as post:
+            response = self.client.post("/chat/stream", json={
+                "mode": "p2", "messages": [
+                    {"role": "user", "content": "Describe this image", "images": ["aW1hZ2U="]},
+                ],
+            })
+            events = [
+                json.loads(line[6:])
+                for line in response.get_data(as_text=True).splitlines()
+                if line.startswith("data: ")
+            ]
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(post.call_args.kwargs["json"]["model"], main.P3_MODEL)
+        self.assertTrue(any("P3 could not inspect" in event.get("error", "") for event in events))
+        self.assertFalse(any(event.get("done") for event in events))
+
+    def test_p2_image_fails_closed_if_p3_says_no_visual_content(self):
+        observation = MagicMock(status_code=200)
+        observation.json.return_value = {
+            "message": {"content": "No visual content was provided for me to analyze."}
+        }
+        with patch.object(main, "get_current_user", return_value=self.authenticated_user), \
+             patch.object(main.requests, "post", return_value=observation) as post:
+            response = self.client.post("/chat/stream", json={
+                "mode": "p2", "messages": [
+                    {"role": "user", "content": "Describe this image", "images": ["aW1hZ2U="]},
+                ],
+            })
+            events = [
+                json.loads(line[6:])
+                for line in response.get_data(as_text=True).splitlines()
+                if line.startswith("data: ")
+            ]
+        self.assertEqual(post.call_count, 1)
+        self.assertTrue(any("did not return a usable image" in event.get("error", "")
+                            for event in events))
+        self.assertFalse(any(event.get("done") for event in events))
+
+    def test_p3_simple_image_question_does_not_wait_for_web_search(self):
+        model_response = MagicMock(status_code=200)
+        model_response.__enter__.return_value = model_response
+        model_response.iter_lines.return_value = [
+            json.dumps({"message": {"content": "A painting."}, "done": True}).encode()
+        ]
+        with patch.object(main, "get_current_user", return_value=self.authenticated_user), \
+             patch.object(main, "search_and_scrape") as search, \
+             patch.object(main.requests, "post", return_value=model_response) as post:
+            response = self.client.post("/chat/stream", json={
+                "mode": "p3", "messages": [
+                    {"role": "user", "content": "What is in this image?", "images": ["aW1hZ2U="]},
+                ],
+            })
+            response.get_data()
+        search.assert_not_called()
+        self.assertEqual(post.call_args.kwargs["json"]["model"], main.P3_MODEL)
+        self.assertEqual(post.call_args.kwargs["json"]["messages"][-1]["images"], ["aW1hZ2U="])
+
+    def test_simple_image_question_skips_web_but_current_image_facts_search(self):
+        image = ["aW1hZ2U="]
+        self.assertEqual(
+            main.generate_commands([{"role": "user", "content": "What is in this image?", "images": image}]),
+            ([], None),
+        )
+        query = "What is the current price of the item in this image?"
+        self.assertEqual(
+            main.generate_commands([{"role": "user", "content": query, "images": image}]),
+            ([query], None),
+        )
+        historical = "What is the history of the monument in this picture?"
+        self.assertEqual(
+            main.generate_commands([{"role": "user", "content": historical, "images": image}]),
+            ([historical], None),
+        )
+        self.assertEqual(
+            main.generate_commands([{"role": "user", "content": "What did they say?",
+                                     "images": [base64.b64encode(b'RIFF\x24\x00\x00\x00WAVE').decode()]}]),
+            ([], None),
+        )
 
     def test_p2_reports_model_rejection_without_dumping_raw_json(self):
         failure = MagicMock(status_code=400)
@@ -160,7 +277,8 @@ class MultimodalMessageTests(unittest.TestCase):
              patch.object(main.requests, "post", return_value=failure):
             response = self.client.post("/chat/stream", json={
                 "mode": "p2", "messages": [
-                    {"role": "user", "content": "Describe this", "images": ["aW1hZ2U="]},
+                    {"role": "user", "content": "Transcribe this audio",
+                     "audio": [base64.b64encode(b'RIFF\x24\x00\x00\x00WAVE').decode()]},
                 ],
             })
             events = [

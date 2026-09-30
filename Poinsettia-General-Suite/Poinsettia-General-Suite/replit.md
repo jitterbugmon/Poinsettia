@@ -3,6 +3,18 @@
 ## Overview
 Poinsettia is a lightweight AI-powered assistant using Ollama for streaming responses. Clean, minimal codebase ready for migration to VS Code or other environments.
 
+## Approved browser architecture
+The user chose the following target on 2026-09-30:
+- No companion application, native installer, Python installation, or Ollama installation on the visitor's computer.
+- The cloud Poinsettia server serves the website and supporting services, including web retrieval, accounts, conversations, and files.
+- Model inference runs in the visitor's browser through WebGPU, not on the cloud support server.
+- Preserve the existing P2/P3/P4 user-facing functionality, including sources, weather, attachments, streaming, downloadable files, and the workspace.
+- Do not silently substitute smaller models, drop modes, or fall back to cloud inference. Browser model compatibility and device limits must be verified and clearly reported.
+
+This is the approved target, not the current implemented runtime. The existing app still invokes Ollama. The install-first page in `docs/` is an earlier prototype and must not be published as the new browser experience.
+
+The separately requested `poinsettia-installation-site/` is a static capabilities/download website for GitHub Pages. It has no application backend and does not change the no-companion architecture of the chat app.
+
 ## Project Structure
 - `main.py` - Minimal Flask backend (~100 lines)
 - `templates/home.html` - Landing page

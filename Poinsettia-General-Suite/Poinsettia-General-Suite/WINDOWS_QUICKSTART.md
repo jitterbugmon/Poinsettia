@@ -70,12 +70,15 @@ query. Some sites block automated page requests; in that case a result may be
 marked **Search-result snippet (full page unavailable)**. That text is from
 the search index, not a verified reading of the linked page.
 
-Poinsettia 2.9 uses the multimodal `gemma4:e4b` base. An updated ZIP copy
-recreates its `poinsettia` model from this base when you relaunch
-`start_poinsettia.bat`. The E4B download is about 9.6 GB and requires a
-compatible, up-to-date Ollama installation. Images and WAV audio are sent
-directly to P2, not through P3. If an attachment still fails, check
-`%LOCALAPPDATA%\Poinsettia\Bootstrap\poinsettia-error.log` for the model error.
+Poinsettia 2.9 still uses the `gemma4:e4b` base. On Windows, Ollama may report
+E4B vision support yet fail to interpret images. Until that is fixed,
+Poinsettia 3 analyzes image attachments and passes its written observations
+to P2 for the final answer. The answer clearly identifies that assistance;
+P2 does not receive the image itself. This adds a model pass and can take
+longer. WAV audio still goes directly to P2. If P3 cannot describe the image,
+P2 displays an error rather than guessing. The E4B model download is about
+9.6 GB if not already installed. Check
+`%LOCALAPPDATA%\Poinsettia\Bootstrap\poinsettia-error.log` for model errors.
 
 ## Troubleshooting
 

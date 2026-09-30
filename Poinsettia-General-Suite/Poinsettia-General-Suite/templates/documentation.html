@@ -358,6 +358,7 @@
                 <a href="#customization">Customization</a>
                 <a href="#license-scope">License Scope</a>
                 <a href="#apache-license">Apache 2.0</a>
+                <a href="#ollama-mit-license">Ollama MIT License</a>
             </nav>
         </aside>
 
@@ -374,6 +375,9 @@
                 <h2><span class="section-number">01</span>Proprietary Software Application</h2>
                 <p>
                     The Poinsettia General Suite (including all application logic, source code, user interfaces, scripts, and surrounding software wrappers) is the exclusive, copyrighted, and proprietary property of Jackson Reis. It is fully closed-source and is not licensed under, nor subject to, the Apache License or any other open-source terms.
+                </p>
+                <p>
+                    This proprietary notice applies to Poinsettia-authored software. Separately identified third-party software and model weights remain subject to their respective licenses; those licenses do not grant rights to Poinsettia's code.
                 </p>
                 <div class="notice">
                     <p><strong>Copyright owner:</strong> Jackson Reis</p>
@@ -411,7 +415,7 @@
                     Poinsettia 3.9 uses the <code>gemma4:12b</code> base model, developed and released by Google DeepMind / Google. Poinsettia 4.0 “Fax” uses <code>gemma4:26b</code>, and Poinsettia 4.0 “Candor” uses <code>gemma4:31b</code>; both P4 base models are developed and released by Google DeepMind / Google. Gemma 4 provides the multimodal architecture used for image input.
                 </p>
                 <div class="notice">
-                    <p><strong>License:</strong> The applicable baseline model license is the Apache License, Version 2.0 for the unaltered <code>gemma4:e4b</code>, <code>gemma4:12b</code>, <code>gemma4:26b</code>, and <code>gemma4:31b</code> base models. Poinsettia application code, branding, prompts, UI, and proprietary configuration remain proprietary.</p>
+                    <p><strong>License:</strong> Google publishes Gemma 4 under the Apache License, Version 2.0. The full license is reproduced below. See Google's <a href="https://ai.google.dev/gemma/docs/gemma_4_license" target="_blank" rel="noopener noreferrer">official Gemma 4 license page</a> for the applicable terms. This does not relicense Poinsettia's application code, branding, prompts, UI, or proprietary configuration.</p>
                 </div>
             </section>
 
@@ -420,6 +424,16 @@
                 <p>
                     This project uses <a href="https://ollama.com/" target="_blank" rel="noopener noreferrer">Ollama</a> as a local runtime to run its configured language models. Ollama is a separate project; Poinsettia is not affiliated with, sponsored by, or endorsed by Ollama. For Ollama software, documentation, and licensing information, visit the <a href="https://ollama.com/" target="_blank" rel="noopener noreferrer">official website</a> and <a href="https://github.com/ollama/ollama" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
                 </p>
+                <p>
+                    Ollama publishes its source repository under the MIT License. That license applies to Ollama's covered software—not to Poinsettia's proprietary code, Gemma model weights, or other separately licensed components. If Ollama software is redistributed, retain the required copyright and permission notices with the covered copies. Review the <a href="https://github.com/ollama/ollama/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">upstream Ollama license</a> and any notices shipped with the version being used.
+                </p>
+                <div class="license-heading" id="ollama-mit-license">
+                    <h3><span class="section-number">08</span>MIT License — Ollama</h3>
+                    <a class="license-link" href="/static/mit-license.txt" download="ollama-MIT-license.txt">Download plain text</a>
+                </div>
+                <div class="license-frame" aria-label="MIT License text published by Ollama">
+                    <pre>{{ ollama_mit_license }}</pre>
+                </div>
             </section>
 
             <section class="docs-section" id="customization">
