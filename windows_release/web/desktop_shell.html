@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Poinsettia Windows</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/desktop_shell.css">
+</head>
+<body>
+  <iframe id="website-frame" title="Poinsettia website"></iframe>
+
+  <main id="legal-gate" class="gate" aria-labelledby="gate-title">
+    <section class="gate-card">
+      <p class="eyebrow">POINSETTIA WINDOWS</p>
+      <h1 id="gate-title">Review the Poinsettia User Agreement</h1>
+      <p>The Windows edition is blocked until you review and accept the current local-use terms.</p>
+      <button id="open-eula" class="button secondary">Read the User Agreement</button>
+      <button id="open-privacy" class="link-button">Read the Privacy Policy</button>
+      <label class="check-row">
+        <input id="accept-eula" type="checkbox" disabled>
+        <span>I have reviewed and accept the current User Agreement.</span>
+      </label>
+      <button id="accept-button" class="button" disabled>Accept and continue</button>
+      <p id="gate-error" class="error" role="alert"></p>
+    </section>
+  </main>
+
+  <aside id="bootstrap-status" class="bootstrap-status hidden" aria-live="polite">
+    <strong id="bootstrap-percent">0%</strong>
+    <span id="bootstrap-message">Preparing local models…</span>
+    <div class="progress"><span id="bootstrap-progress"></span></div>
+    <span id="hardware-warning"></span>
+  </aside>
+
+  <dialog id="legal-dialog" class="legal-dialog">
+    <article>
+      <header>
+        <h2 id="legal-title">User Agreement</h2>
+        <button id="close-legal" class="icon-button" aria-label="Close">×</button>
+      </header>
+      <pre id="legal-content"></pre>
+      <footer><button id="legal-dialog-close" class="button secondary">Close</button></footer>
+    </article>
+  </dialog>
+  <script src="/assets/desktop_shell.js"></script>
+</body>
+</html>
