@@ -1,0 +1,3 @@
+-r dependencies.txt
+python-minifier
+werkzeug
