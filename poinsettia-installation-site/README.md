@@ -11,7 +11,7 @@ poinsettia-installation-site/
 ├── index.html       # Capabilities, models, and installation guide
 ├── styles.css       # Responsive theme
 ├── config.js        # Public GitHub repository setting
-├── app.js           # Latest release lookup and download link
+├── app.js           # Configures direct GitHub repository links
 ├── assets/
 │   ├── poinsettia-logo.png
 │   └── favicon.png
@@ -20,8 +20,8 @@ poinsettia-installation-site/
 
 There is **no Flask dependency, Python application, database, build step,
 package installation, or custom backend** in this folder. Outfit loads from
-Google Fonts with system-font fallbacks; the download lookup uses GitHub's
-public Releases API. No API key or login is required.
+Google Fonts with system-font fallbacks. The download links go straight to
+GitHub Releases and do not require its API, an API key, or a login.
 
 ## Preview
 
@@ -66,13 +66,29 @@ repository: "jitterbugmon/Poinsettia"
 It refers to the repository that holds the application releases, which can
 differ from the repository hosting this website.
 
-The top **Install latest version** button activates only when the latest
-public GitHub release contains a nonempty asset named
-`Poinsettia-<version>-Windows-x64-Setup.exe`. Missing assets, failed requests,
-and API rate limits show a clear message and leave the release-page link
-available. The website cannot execute a downloaded installer; visitors must
-open it themselves. It does not verify Authenticode signatures or claim an
-installer is signed.
+The red homepage buttons open the official GitHub Releases page. The guide
+describes a clearly labelled unsigned beta Setup.exe if the official release
+offers one, without claiming that an asset is currently published. That packaged installer
+includes the app's Python runtime. The advanced ZIP/batch alternative remains:
+install current stable Python 3.11+ from Python.org, download the Windows ZIP
+asset if offered, extract it, and start `start_poinsettia.bat` only if Windows
+allows it without bypassing a warning. First run downloads dependencies and
+models and requires internet. For the installer, compare its SHA-256 with the
+official `SHA256SUMS.txt` before opening it. The guide explains how to use
+`Get-FileHash`; a matching hash does not establish that the software is safe.
+
+Keep Windows Smart App Control enabled. The website does not guarantee that
+any release or downloaded dependency is malware-free. If Windows blocks a
+download or reports an unverified publisher, cancel rather than disabling
+protections or choosing “Run anyway.” Only use packages from the official
+release page and verify their publisher/checksum when available.
+
+ZIP Unblock only clears the internet-download marker; it does not establish
+trust or override Smart App Control. The unsigned installer can face the same
+Windows warnings and blocks as the batch launcher. See
+`windows_release/GITHUB_RELEASE.md` in the application repository for the
+manual unsigned-beta Windows build and optional signed-build prerequisites;
+this static website does not create or sign installers.
 
 ## Scope and safety
 
