@@ -294,6 +294,16 @@ h2 { margin: 0; font-size: clamp(32px, 3.25vw, 47px); font-weight: 500; line-hei
 .install-layout { display: grid; grid-template-columns: 1fr 1.02fr; gap: 12%; align-items: start; }
 .install-intro > p:not(.section-kicker) { max-width: 470px; margin: 22px 0; color: var(--muted); font-size: 16px; }
 .inline-link { color: #ff9d9d; font-size: 14px; font-weight: 500; text-decoration-color: rgba(255, 157, 157, .45); text-underline-offset: 5px; }
+.installer-option { margin-top: 26px; padding: 20px; border: 1px solid rgba(255, 82, 82, .25); border-radius: 12px; background: var(--panel-soft); }
+.installer-option h3, .zip-heading { margin: 0 0 12px; font-size: 20px; font-weight: 500; color: var(--text); }
+.installer-option p, .zip-description { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.installer-option p + p { margin-top: 12px; }
+.zip-description { margin-bottom: 30px; }
+.installer-option code, .security-note code { overflow-wrap: anywhere; }
+.security-note { margin-top: 26px; padding: 18px 20px; border: 1px solid rgba(255, 165, 105, .24); border-radius: 12px; background: rgba(255, 133, 79, .06); }
+.security-note h3 { margin: 0 0 9px; color: #ffc39b; font-size: 15px; font-weight: 600; }
+.security-note p { max-width: 470px; margin: 0; color: #c8b9b0; font-size: 13px; line-height: 1.6; }
+.security-note p + p { margin-top: 9px; }
 .install-steps { margin: 0; padding: 0; list-style: none; }
 .install-steps li { display: grid; grid-template-columns: 48px 1fr; gap: 16px; padding: 0 0 25px; border-bottom: 1px solid var(--line); }
 .install-steps li + li { padding-top: 25px; }
