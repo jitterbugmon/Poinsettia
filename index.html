@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0a0a0a">
-  <meta name="description" content="Meet Poinsettia, a local AI workspace for conversation, research, images, and files. Download the latest Windows installer.">
+  <meta name="description" content="Meet Poinsettia, a local AI workspace for conversation, research, images, and files. Get the latest Windows release.">
   <title>Poinsettia — Capabilities &amp; Installation</title>
   <link rel="icon" href="./assets/favicon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,8 +29,8 @@
         <a href="#how-it-works">How it works</a>
         <a data-source-link href="https://github.com/jitterbugmon/Poinsettia" target="_blank" rel="noopener noreferrer">Source <span aria-hidden="true">↗</span></a>
       </nav>
-      <a class="button button-primary header-install" data-install aria-disabled="true" tabindex="-1" aria-describedby="release-status">
-        Install latest version
+      <a class="button button-primary header-install" data-release-link href="https://github.com/jitterbugmon/Poinsettia/releases" target="_blank" rel="noopener noreferrer">
+        View releases
       </a>
     </div>
   </header>
@@ -42,17 +42,16 @@
         <h1 id="hero-title">A workspace for <em>thinking, making,</em> and finding out.</h1>
         <p class="hero-description">Meet Poinsettia: a conversational AI workspace that runs its models on your computer, with room for research, images, and the files you create along the way.</p>
         <div class="hero-actions">
-          <a class="button button-primary button-large" data-install aria-disabled="true" tabindex="-1" aria-describedby="release-status">
-            Install latest version <span class="button-arrow" aria-hidden="true">↘</span>
+          <a class="button button-primary button-large" data-release-link href="https://github.com/jitterbugmon/Poinsettia/releases" target="_blank" rel="noopener noreferrer">
+            Download Poinsettia <span class="button-arrow" aria-hidden="true">↘</span>
           </a>
           <a class="button button-secondary button-large" href="#how-it-works">See how installation works <span aria-hidden="true">↓</span></a>
         </div>
         <div class="release-line">
           <span class="release-indicator" aria-hidden="true"></span>
-          <p id="release-status" role="status" aria-live="polite">Checking the latest Windows installer…</p>
+          <p id="release-status">Browse Windows downloads on the official releases page.</p>
         </div>
-        <a class="inline-link release-fallback" data-release-link href="https://github.com/jitterbugmon/Poinsettia/releases" target="_blank" rel="noopener noreferrer">Browse official releases <span aria-hidden="true">↗</span></a>
-        <noscript><p class="noscript-note">JavaScript is needed to find the latest installer. <a href="https://github.com/jitterbugmon/Poinsettia/releases">Browse GitHub releases instead.</a></p></noscript>
+        <noscript><p class="noscript-note">Browse the <a href="https://github.com/jitterbugmon/Poinsettia/releases">official GitHub releases</a> to download Poinsettia.</p></noscript>
         <p class="hero-smallprint">Windows 64-bit · Free to download · Models download during first-run setup</p>
       </div>
 
@@ -141,23 +140,43 @@
         <div class="install-intro">
           <p class="section-kicker">Get started</p>
           <h2 id="install-title">From download to workspace.</h2>
-          <p>Install once. Poinsettia sets up its local runtime and opens your workspace. The first model download can take a while and needs an internet connection.</p>
+          <p>Choose the Windows Setup.exe when offered on the official releases page, or use the advanced Python/ZIP/batch alternative below. The installer described here is unsigned, so Windows may warn about it or block it. First startup needs internet and may take a while.</p>
           <a data-release-link href="https://github.com/jitterbugmon/Poinsettia/releases" class="inline-link" target="_blank" rel="noopener noreferrer">View all releases <span aria-hidden="true">↗</span></a>
+          <div class="installer-option">
+            <h3>Setup.exe — unsigned beta</h3>
+            <p>If the official release offers <code>Poinsettia-&lt;version&gt;-Windows-x64-Setup.exe</code>, download that asset and its <code>SHA256SUMS.txt</code>. This installer is unsigned: Windows cannot verify its publisher through a code-signing signature. A matching checksum confirms that the file matches the release; it does not prove that it is safe.</p>
+            <p>Before opening it, check its SHA-256. In File Explorer, use “Copy as path” on the downloaded installer. Open PowerShell, type <code>Get-FileHash -Algorithm SHA256 -LiteralPath</code> followed by a space and the copied, quoted path, then press Enter. Compare the Hash value with the installer’s entry in <code>SHA256SUMS.txt</code>. If the checksum is missing or does not match, stop.</p>
+            <p>The packaged installer includes the app’s Python runtime, so you do not need to install Python separately for this option. If Windows permits it without bypassing a security warning, follow setup, then launch Poinsettia for first-run Ollama and model downloads. SmartScreen or Smart App Control may still block this unsigned installer; cancel if Windows blocks it or reports an unknown publisher.</p>
+          </div>
+          <aside class="security-note" aria-label="Windows security notice">
+            <h3>Keep Windows protection enabled</h3>
+            <p>Poinsettia is intended to run a local AI assistant, but this website cannot guarantee that every release or downloaded dependency is malware-free. ZIP startup downloads Python packages; both installation paths download Ollama and model files. Use official sources and keep Smart App Control enabled.</p>
+            <p>If Windows blocks either installation path, stop. An unsigned Setup.exe is not a way around the restrictions on a batch launcher. Do not turn off Smart App Control or choose “Run anyway” for an unknown publisher.</p>
+            <p>A downloaded <code>.bat</code> file or the code it starts may be blocked. The ZIP’s “Unblock” option only removes its internet-download marker; it does not establish trust or override Smart App Control.</p>
+          </aside>
         </div>
-        <ol class="install-steps">
+        <div class="zip-option">
+          <h3 class="zip-heading">ZIP / .bat alternative — advanced</h3>
+          <p class="zip-description">For users who intentionally choose the release ZIP. This path requires Python and may be blocked by Windows; use it only if the download is verified and Windows permits it without bypassing a warning.</p>
+          <ol class="install-steps">
           <li>
             <span class="step-number">01</span>
-            <div><h3>Download the installer</h3><p>Use “Install latest version” when a Windows installer is available in the official GitHub release.</p></div>
+            <div><h3>Install Python for Windows</h3><p>Download the latest stable 64-bit Python installer (3.11 or newer) from <a href="https://www.python.org/downloads/windows/" target="_blank" rel="noopener noreferrer">Python.org</a>. Use the standard installer, not the embeddable ZIP, and enable “Add python.exe to PATH” if offered.</p></div>
           </li>
           <li>
             <span class="step-number">02</span>
-            <div><h3>Open it on your computer</h3><p>Windows asks you to run and approve downloaded software. A website cannot execute the installer for you.</p></div>
+            <div><h3>Download the Windows ZIP</h3><p>Open the <a data-release-link href="https://github.com/jitterbugmon/Poinsettia/releases" target="_blank" rel="noopener noreferrer">official Poinsettia releases</a> and choose a Windows ZIP asset if offered. Verify the release’s checksum when provided. Use that release package, not GitHub’s automatically generated “Source code” archive.</p></div>
           </li>
           <li>
             <span class="step-number">03</span>
-            <div><h3>Set up, then begin</h3><p>Accept the first-run terms, let the local models download, and Poinsettia opens its workspace.</p></div>
+            <div><h3>Extract the ZIP from Downloads</h3><p>In File Explorer, select the downloaded ZIP in Downloads, choose “Extract all,” pick a destination, then click “Extract.” Only if you have verified it came from the official release, you can use the ZIP’s Properties → “Unblock” option before extracting if Windows marks it as downloaded from the internet.</p></div>
           </li>
-        </ol>
+          <li>
+            <span class="step-number">04</span>
+            <div><h3>Start Poinsettia</h3><p>Open the extracted folder and double-click <code>start_poinsettia.bat</code>. Keep the window open while setup installs dependencies, checks Ollama, and downloads the models. This needs internet and may take a while; Poinsettia opens in your browser when ready. If Windows blocks it or shows an unverified-publisher warning, cancel rather than bypassing the warning.</p></div>
+          </li>
+          </ol>
+        </div>
       </div>
     </section>
 
@@ -167,7 +186,7 @@
         <div>
           <p class="section-kicker">What runs where</p>
           <h2 id="details-title">Your models run locally.</h2>
-          <p>The current Windows installer uses Ollama on your computer. Web research and first-time model downloads still use the internet. Browser-based WebGPU inference is not part of this installer yet.</p>
+          <p>Both Windows installation paths use Python and Ollama locally. The packaged Setup.exe includes Python; the ZIP/batch path requires Python installed separately. First-run setup downloads dependencies and models, and web research needs internet. This optional desktop distribution is separate from browser-based WebGPU inference.</p>
         </div>
       </div>
     </section>
