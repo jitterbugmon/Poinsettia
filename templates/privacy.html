@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Poinsettia Privacy Policy.">
+    <title>Privacy Policy · Poinsettia</title>
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon.png?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dark-bg: #121212;
+            --darker-bg: #0a0a0a;
+            --card-bg: #1e1e1e;
+            --primary-color: #ff5252;
+            --primary-hover: #ff7070;
+            --text-color: #f0f0f0;
+            --text-secondary: #bdbdbd;
+            --muted: #888;
+            --border: rgba(255,255,255,0.1);
+            --soft-red: rgba(255,82,82,0.1);
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at 78% 0%, rgba(255,82,82,0.08), transparent 28rem),
+                var(--dark-bg);
+            color: var(--text-color);
+            font: 1rem/1.7 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        a { color: inherit; }
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: rgba(10,10,10,0.92);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(16px);
+        }
+        .header-inner {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary-color);
+            font-size: 1.35rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .brand img { width: 36px; height: 36px; object-fit: contain; }
+        .header-actions { display: flex; align-items: center; gap: 20px; }
+        .header-link {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            text-decoration: none;
+        }
+        .header-link:hover { color: var(--primary-color); }
+        .launch-link {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: var(--primary-color);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .launch-link:hover { background: var(--primary-hover); }
+        .policy-layout {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 72px 24px 100px;
+        }
+        .eyebrow {
+            margin: 0 0 14px;
+            color: var(--primary-color);
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+        h1, h2 { line-height: 1.2; }
+        h1 {
+            max-width: 760px;
+            margin: 0 0 18px;
+            font-size: clamp(2.5rem, 6vw, 4.7rem);
+            letter-spacing: -0.045em;
+        }
+        .lead {
+            max-width: 720px;
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 1.12rem;
+        }
+        .intro {
+            padding-bottom: 44px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 46px;
+        }
+        .notice {
+            margin: 28px 0 46px;
+            padding: 22px 24px;
+            border: 1px solid rgba(255,82,82,0.28);
+            border-radius: 14px;
+            background: var(--soft-red);
+        }
+        .notice p { margin: 0; color: #e7c9c9; }
+        .notice strong { color: var(--primary-color); }
+        .policy-section {
+            margin-bottom: 38px;
+            scroll-margin-top: 100px;
+        }
+        .policy-section h2 {
+            margin: 0 0 12px;
+            font-size: 1.45rem;
+        }
+        .section-number {
+            display: inline-block;
+            min-width: 34px;
+            margin-right: 8px;
+            color: var(--primary-color);
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+        }
+        .policy-section p, .policy-section li {
+            color: var(--text-secondary);
+            font-size: 0.98rem;
+        }
+        .policy-section p { margin: 0 0 13px; }
+        .policy-section ul { margin: 12px 0 0; padding-left: 24px; }
+        .policy-section li { margin-bottom: 7px; }
+        .site-footer {
+            padding: 28px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--darker-bg);
+            color: var(--muted);
+            font-size: 0.86rem;
+            text-align: center;
+        }
+        .site-footer a { color: var(--text-secondary); text-decoration: none; }
+        .site-footer a:hover { color: var(--primary-color); }
+        @media (max-width: 560px) {
+            .header-inner { padding: 12px 16px; }
+            .header-actions { gap: 12px; }
+            .header-link { display: none; }
+            .policy-layout { padding: 48px 16px 80px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="/" class="brand">
+                <img src="data:image/png;base64,{{ logo_base64 }}" alt="Poinsettia logo">
+                <span>Poinsettia</span>
+            </a>
+            <div class="header-actions">
+                <a href="/" class="header-link">Home</a>
+                <a href="/documentation" class="header-link">Documentation</a>
+                <a href="/chat" class="launch-link">Launch App</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="policy-layout">
+        <section class="intro">
+            <p class="eyebrow">Privacy · Version {{ privacy_version }}</p>
+            <h1>Privacy Policy</h1>
+            <p class="lead">This policy explains what information Poinsettia processes, why it is used, and the choices available to users of the Poinsettia General Suite.</p>
+            <p class="lead">Effective date: September 6, 2026</p>
+        </section>
+
+        <div class="notice">
+            <p><strong>In short:</strong> Poinsettia uses account information to provide signed-in access, stores conversations and generated files so they are available across sessions, sends relevant Poinsettia 3.9 or Poinsettia 4.0 research queries to external search and data sources when you request current information, and processes attached media through the configured local Gemma runtime. Poinsettia 4.0 accepts image uploads but does not provide audio import or microphone controls. A standalone edition may preserve this information in local application data when it is updated.</p>
+        </div>
+
+        <section class="policy-section" id="scope">
+            <h2><span class="section-number">01</span>Scope and owner</h2>
+            <p>This Privacy Policy applies to the Poinsettia General Suite, including the Poinsettia 2, Poinsettia 3.9, and Poinsettia 4.0 chat experiences, standalone annual editions, the public website, account services, conversation storage, generated-file features, multimodal image and speech/audio input where supported, and authorized update handlers. Jackson Reis operates and owns the Poinsettia application for purposes of this policy.</p>
+            <p>By using Poinsettia, you acknowledge this policy and the <a href="/eula">End User License Agreement</a>. The EULA explains the license and acceptable-use terms; this policy explains information practices.</p>
+        </section>
+
+        <section class="policy-section" id="information">
+            <h2><span class="section-number">02</span>Information we process</h2>
+            <p><strong>Account and consent information.</strong> When you create an account, Poinsettia stores your username, a securely generated password hash rather than your plaintext password, your age confirmation, EULA review and agreement status, the accepted EULA version, Privacy Policy agreement status, the accepted Privacy Policy version, and the relevant consent timestamps.</p>
+            <p><strong>Content and files.</strong> When you use the signed-in application, Poinsettia stores your conversation messages and generated responses so your conversations can be restored across sessions and supported application editions. It also stores uploaded or generated file content, file names, file type, size, and creation metadata when you use the file features. When files, images, or audio are provided with a Poinsettia 3 request, or images are provided with a Poinsettia 4 request, that content is used to help produce the response and is processed by the configured local Ollama runtime. Raw image and audio attachments are not stored as conversation message content by the application.</p>
+            <p><strong>Standalone application data.</strong> A locally installed edition may keep conversation and account data in an application database, such as a file named <code>poinsettia.db</code>, and generated files in a local application-data directory. The exact location depends on the operating system and edition. This local data is user data, not merely temporary installation files.</p>
+            <p><strong>Sessions and preferences.</strong> The application uses signed session cookies to keep you signed in and to maintain a secure session. Selected display preferences, such as font, text size, and sidebar state, may be stored in your browser’s local storage. These browser preferences are not needed to identify you.</p>
+            <p><strong>Technical information.</strong> The hosting and web-server infrastructure may process ordinary request information such as IP address, browser or device details, timestamps, and error or security logs to operate and protect the service. When you click the <strong>Record Audio</strong> or microphone button, your browser may request permission to use your microphone. If you grant permission, Poinsettia records audio from the microphone, converts it for processing, and submits the recording with your Poinsettia 3 request for analysis. Poinsettia does not ask for a real name, telephone number, or payment information to create a free account.</p>
+            <p><strong>Updates and distribution.</strong> If a standalone edition includes an update handler, it may process the installed version, operating-system or compatibility information, update availability, installation status, and download or error status. The Microsoft Store or another authorized distributor may separately process Store account, device, licensing, download, and diagnostic information under its own privacy policy. Poinsettia does not need to inspect the contents of your local chat database merely to check whether an update is available.</p>
+        </section>
+
+        <section class="policy-section" id="use">
+            <h2><span class="section-number">03</span>How information is used</h2>
+            <ul>
+                <li>To create and authenticate accounts and enforce the age and EULA requirements.</li>
+                <li>To provide chat responses, restore signed-in conversations, and manage generated files.</li>
+                <li>To preserve supported local application data during an authorized application update.</li>
+                <li>To check for, deliver, install, and troubleshoot authorized application updates.</li>
+                <li>To remember selected interface preferences in your browser.</li>
+                <li>To investigate errors, prevent abuse, protect the service, and enforce the EULA.</li>
+                <li>To comply with applicable law and respond to valid legal process.</li>
+            </ul>
+            <p>Poinsettia does not require payment information for the free account experience. We do not sell personal information as a business practice.</p>
+        </section>
+
+        <section class="policy-section" id="research">
+            <h2><span class="section-number">04</span>Poinsettia 3.9 and 4.0 research and multimodal inference</h2>
+            <p>Poinsettia 3.9 and Poinsettia 4.0 can retrieve current information when your request calls for web research, weather, or related data. To do that, relevant query text may be sent to external services and websites, including search and encyclopedia services, OpenStreetMap’s Nominatim geocoding service, the National Weather Service, and source webpages selected for citations.</p>
+            <p>Those providers may receive the query, technical request information, and the IP address or other information normally disclosed by a web request. They operate under their own terms and privacy policies. Do not include sensitive personal information in a query that you do not want sent to an external source.</p>
+            <p>Poinsettia 2, Poinsettia 3.9, and Poinsettia 4.0 inference is served through the project’s configured Ollama runtime. Poinsettia 3.9 uses native image and speech/audio understanding for attached media; Poinsettia 4.0 uses native image understanding only. The application does not intentionally send ordinary prompts or attached media to a separate hosted AI provider, but retrieved third-party content may be included in a Poinsettia 3.9 or Poinsettia 4.0 response request.</p>
+        </section>
+
+        <section class="policy-section" id="storage">
+            <h2><span class="section-number">05</span>Storage and retention</h2>
+            <p>Account records, signed-in conversations, and files are stored in the application’s database and file storage so the services can function across sessions. For a standalone edition, this may include a local database and local application-data directory. We retain them while the account or feature remains active, or for as long as reasonably necessary for security, legal, dispute-resolution, and legitimate operational purposes.</p>
+            <p>An authorized update may replace program files while leaving supported local database and file-storage data in place. We do not guarantee that every future edition, uninstall process, device reset, or update will preserve local data, so maintain a backup of information you need. Installing a newer edition does not by itself require uploading your local conversation database.</p>
+            <p>You can delete generated files through the application’s file controls. Signing out ends the active session but does not delete saved account data or conversations. If you need an account-data deletion or correction request, direct it to Jackson Reis through the contact channel made available with the project; applicable legal obligations may affect what can be removed.</p>
+        </section>
+
+        <section class="policy-section" id="cookies">
+            <h2><span class="section-number">06</span>Cookies and local storage</h2>
+            <p>Poinsettia uses a signed session cookie for authentication and session continuity. The application also uses browser local storage for optional interface settings, such as appearance preferences and file-sidebar state. A standalone edition may additionally use local files for its database and generated-file storage; those files are separate from browser local storage. You can clear local storage or block cookies in your browser, but blocking the session cookie will prevent sign-in and use of protected services.</p>
+        </section>
+
+        <section class="policy-section" id="sharing">
+            <h2><span class="section-number">07</span>Sharing and disclosures</h2>
+            <p>Information may be disclosed to hosting, infrastructure, security, and external data providers only as needed to operate the application, fulfill a requested Poinsettia 3.9 research task, deliver or support an authorized update, protect the service, or comply with law. The Microsoft Store or another authorized distributor may process update, licensing, device, and download information under its own policies. Poinsettia may also display third-party links and citations; visiting those links is governed by the linked provider’s policies.</p>
+            <p>We do not disclose saved conversations or files to other users through the application. Keep your account credentials private and do not submit material that you are not authorized to process.</p>
+        </section>
+
+        <section class="policy-section" id="security">
+            <h2><span class="section-number">08</span>Security</h2>
+            <p>Passwords are stored as password hashes, and account content is associated with the signed-in account that created it. No internet transmission or storage system can be guaranteed completely secure, so protect your password and avoid submitting information that requires a higher level of confidentiality than this service provides.</p>
+        </section>
+
+        <section class="policy-section" id="children">
+            <h2><span class="section-number">09</span>Age requirement</h2>
+            <p>Poinsettia is not intended for children under 13. Account creation requires confirmation that the user is at least 13 years old. If you believe a child under 13 has provided information, please use the project’s available contact channel so the information can be reviewed and removed where appropriate.</p>
+        </section>
+
+        <section class="policy-section" id="business">
+            <h2><span class="section-number">10</span>Business use</h2>
+            <p>Poinsettia may be used in lawful business workflows and commercial projects under the EULA. Organizations are responsible for deciding whether the service is appropriate for their information, ensuring they have permission to submit content, and meeting any privacy, confidentiality, security, or regulatory obligations that apply to them.</p>
+        </section>
+
+        <section class="policy-section" id="changes">
+            <h2><span class="section-number">11</span>Changes to this policy</h2>
+            <p>Jackson Reis may update this Privacy Policy as the service, storage architecture, distribution method, update practices, or legal requirements change. The active policy is always available at the public <a href="/privacy">Privacy Policy page</a>, linked from the EULA and Documentation. You may be asked to review and accept a materially changed policy before using protected services. Continued use of Poinsettia after an update is published constitutes acceptance of the updated policy where permitted by law.</p>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <span>Poinsettia · 2026</span>
+        <span> · </span>
+        <a href="/eula">EULA</a>
+        <span> · </span>
+        <a href="/documentation">Documentation</a>
+        <span> · </span>
+        <a href="/chat">Launch app</a>
+    </footer>
+</body>
+</html>
