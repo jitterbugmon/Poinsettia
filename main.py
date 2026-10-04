@@ -12,6 +12,9 @@ import zipfile
 import io
 import sqlite3
 import time
+import queue
+import threading
+from contextvars import ContextVar
 from html import escape as html_escape
 
 import requests
@@ -28,6 +31,40 @@ app.secret_key = os.environ.get('SESSION_SECRET', secrets.token_hex(32))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+retrieval_logger = logging.getLogger("poinsettia.retrieval")
+_search_progress_handler = ContextVar("search_progress_handler", default=None)
+
+
+class _SearchCancelled(Exception):
+    pass
+
+
+def _emit_search_progress(url, stage):
+    handler = _search_progress_handler.get()
+    if handler is not None:
+        domain = urlparse(url).hostname
+        if domain:
+            handler(domain, stage)
+
+
+def _retrieval_event(event, **fields):
+    """Structured metadata only; Windows uses a separate privacy-safe handler."""
+    retrieval_logger.info(
+        event, extra={"retrieval_event": event, "retrieval_fields": fields}
+    )
+
+
+def _retrieval_error_reason(exc):
+    for error_type, reason in (
+        (requests.exceptions.SSLError, "tls"),
+        (requests.exceptions.ProxyError, "proxy"),
+        (requests.exceptions.Timeout, "timeout"),
+        (requests.exceptions.ConnectionError, "connection"),
+        (ValueError, "parse"),
+    ):
+        if isinstance(exc, error_type):
+            return reason
+    return "unexpected"
 
 EULA_VERSION = "1.3"
 PRIVACY_VERSION = "1.3"
@@ -491,6 +528,7 @@ def extract_files_from_text(text, user_id=None, guest_key=None):
 # ── Web Scrapers ───────────────────────────────────────────────────────────────
 
 def fetch_wikipedia(query):
+    _emit_search_progress("https://en.wikipedia.org", "searching")
     try:
         quoted_title = re.search(r'["“]([^"”]{2,100})["”]', query)
         film_query = bool(re.search(r'\b(movie|film)\b', query, re.IGNORECASE))
@@ -514,6 +552,7 @@ def fetch_wikipedia(query):
                 logger.info("Wikipedia returned no matching title for quoted query")
                 return "", ""
         title = hits[0]['title']
+        _emit_search_progress("https://en.wikipedia.org", "searching")
         summary = requests.get(
             f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(title.replace(' ', '_'), safe='()')}",
             headers=HEADERS, timeout=8
@@ -525,11 +564,14 @@ def fetch_wikipedia(query):
                 or f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'), safe='()')}"
             )
             return f"[Wikipedia — {title}]\n{extract[:1500]}", source_url
+    except _SearchCancelled:
+        raise
     except Exception as e:
         logger.warning(f"Wikipedia fetch failed: {e}")
     return "", ""
 
 def fetch_duckduckgo_instant(query):
+    _emit_search_progress("https://api.duckduckgo.com", "searching")
     try:
         data = requests.get(
             "https://api.duckduckgo.com/",
@@ -546,8 +588,12 @@ def fetch_duckduckgo_instant(query):
     return "", ""
 
 def scrape_url(url):
+    _emit_search_progress(url, "checking")
+    started = time.monotonic()
     try:
         resp = requests.get(url, headers=HEADERS, timeout=8)
+        _retrieval_event("page_http", status=resp.status_code,
+                         duration_ms=round((time.monotonic() - started) * 1000))
         if resp.status_code != 200:
             logger.info("Source page returned HTTP %s: %s", resp.status_code, url)
             return ""
@@ -560,9 +606,12 @@ def scrape_url(url):
             'verify you are a human', 'enable javascript and cookies to continue',
             'sorry, we just need to make sure you are not a robot',
         )):
+            _retrieval_event("page_rejected", reason="challenge")
             return ""
         return text[:1800]
     except Exception as e:
+        _retrieval_event("page_error", reason=_retrieval_error_reason(e),
+                         error_type=type(e).__name__)
         logger.warning(f"Scrape failed for {url}: {e}")
     return ""
 
@@ -579,53 +628,7 @@ def _domain_matches(url, domain):
         host == domain or host.endswith('.' + domain)
     )
 
-def fetch_duckduckgo_web(query, domains=None):
-    preferred = list(domains or [])
-    candidates = {}
-    # Some networks return an empty page for the POST endpoint without raising
-    # an error. Try the HTML GET and then Lite before giving up on page links.
-    for name, method, endpoint, params, selector in (
-        ('HTML POST', requests.post, 'https://html.duckduckgo.com/html/',
-         {'data': {'q': query}}, '.result__a'),
-        ('HTML GET', requests.get, 'https://html.duckduckgo.com/html/',
-         {'params': {'q': query}}, '.result__a'),
-        ('Lite GET', requests.get, 'https://lite.duckduckgo.com/lite/',
-         {'params': {'q': query}}, '.result-link'),
-    ):
-        try:
-            resp = method(endpoint, headers=HEADERS, timeout=10, **params)
-            if resp.status_code != 200:
-                logger.warning("DuckDuckGo %s returned HTTP %s", name, resp.status_code)
-                continue
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            links = soup.select(selector)
-            if not links:
-                logger.warning("DuckDuckGo %s returned no result links", name)
-                continue
-            for link_tag in links:
-                href = link_tag.get('href', '')
-                if 'uddg=' in href:
-                    actual_url = unquote(href.split('uddg=')[-1].split('&')[0])
-                elif href.startswith('http'):
-                    actual_url = href
-                else:
-                    continue
-                if urlparse(actual_url).scheme not in ('http', 'https'):
-                    continue
-                if any(_domain_matches(actual_url, junk) for junk in _JUNK_DOMAINS):
-                    continue
-                result_block = link_tag.find_parent(class_='result__body')
-                snippet_tag = result_block.select_one('.result__snippet') if result_block else None
-                snippet = snippet_tag.get_text(' ', strip=True) if snippet_tag else ''
-                candidates.setdefault(actual_url, snippet)
-                if len(candidates) >= 8:
-                    break
-            if candidates:
-                break
-            logger.warning("DuckDuckGo %s returned no usable result URLs", name)
-        except Exception as e:
-            logger.warning("DuckDuckGo %s search failed: %s", name, e)
-
+def _collect_web_evidence(query, preferred, candidates, page_cache):
     named_sites = {
         'imdb.com': ('imdb',), 'amazon.com': ('amazon',),
         'adafruit.com': ('adafruit',), 'learn.adafruit.com': ('adafruit',),
@@ -650,7 +653,10 @@ def fetch_duckduckgo_web(query, domains=None):
     for index, url in enumerate(ranked_urls):
         if len(results) >= 2:
             break
-        content = scrape_url(url)
+        # Retry parsing/snippets, but do not download the same page repeatedly.
+        if url not in page_cache:
+            page_cache[url] = scrape_url(url)
+        content = page_cache[url]
         snippet_only = False
         if not content and len(candidates[url]) >= 50:
             content = f"Search-result snippet (full page unavailable): {candidates[url][:550]}"
@@ -679,6 +685,96 @@ def fetch_duckduckgo_web(query, domains=None):
         results.append(f"[{label} — {url[:80]}]\n{content}")
         source_urls.append(url)
     return results, source_urls
+
+
+def _search_result_snippet(link_tag, lite=False):
+    if not lite:
+        block = (link_tag.find_parent(class_='result__body')
+                 or link_tag.find_parent(class_='result'))
+        snippet = block.select_one('.result__snippet') if block else None
+    else:
+        row = link_tag.find_parent('tr')
+        snippet = row.select_one('.result-snippet') if row else None
+        if row and snippet is None:
+            # Lite puts the excerpt in the following row, not a result__body.
+            for following in row.find_next_siblings('tr', limit=4):
+                if following.select_one('.result-link'):
+                    break
+                snippet = following.select_one('.result-snippet')
+                if snippet is not None:
+                    break
+    return snippet.get_text(' ', strip=True) if snippet is not None else ''
+
+
+def fetch_duckduckgo_web(query, domains=None):
+    preferred = list(domains or [])
+    page_cache = {}
+    _retrieval_event("search_start")
+    for name, method, endpoint, params, selector in (
+        ('HTML POST', requests.post, 'https://html.duckduckgo.com/html/',
+         {'data': {'q': query}}, '.result__a'),
+        ('HTML GET', requests.get, 'https://html.duckduckgo.com/html/',
+         {'params': {'q': query}}, '.result__a'),
+        ('Lite GET', requests.get, 'https://lite.duckduckgo.com/lite/',
+         {'params': {'q': query}}, '.result-link'),
+    ):
+        started = time.monotonic()
+        _emit_search_progress(endpoint, "searching")
+        try:
+            resp = method(endpoint, headers=HEADERS, timeout=10, **params)
+            _retrieval_event("search_http", endpoint=name, status=resp.status_code,
+                             duration_ms=round((time.monotonic() - started) * 1000))
+            if resp.status_code != 200:
+                logger.warning("DuckDuckGo %s returned HTTP %s", name, resp.status_code)
+                continue
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            links = soup.select(selector)
+            _retrieval_event("search_parsed", endpoint=name, links=len(links),
+                             challenge=any(marker in resp.text.lower() for marker in (
+                                 'anomaly-modal', 'anomaly.js', 'bots use duckduckgo',
+                             )))
+            if not links:
+                logger.warning("DuckDuckGo %s returned no result links", name)
+                continue
+            candidates = {}
+            for link_tag in links:
+                href = link_tag.get('href', '')
+                if 'uddg=' in href:
+                    actual_url = unquote(href.split('uddg=')[-1].split('&')[0])
+                elif href.startswith('http'):
+                    actual_url = href
+                else:
+                    continue
+                if urlparse(actual_url).scheme not in ('http', 'https'):
+                    continue
+                if any(_domain_matches(actual_url, junk) for junk in _JUNK_DOMAINS):
+                    continue
+                snippet = _search_result_snippet(link_tag, lite=name == 'Lite GET')
+                if len(snippet) > len(candidates.get(actual_url, '')):
+                    candidates[actual_url] = snippet
+                else:
+                    candidates.setdefault(actual_url, snippet)
+                if len(candidates) >= 8:
+                    break
+            if not candidates:
+                logger.warning("DuckDuckGo %s returned no usable result URLs", name)
+                continue
+            results, urls = _collect_web_evidence(query, preferred, candidates, page_cache)
+            _retrieval_event("search_evidence", endpoint=name,
+                             candidates=len(candidates), pages=len(results),
+                             snippets=sum('Search-result snippet' in page for page in results))
+            if results:
+                _retrieval_event("search_complete", pages=len(results))
+                return results, urls
+            logger.warning("DuckDuckGo %s returned links but no usable evidence", name)
+        except _SearchCancelled:
+            raise
+        except Exception as e:
+            _retrieval_event("search_error", endpoint=name,
+                             reason=_retrieval_error_reason(e), error_type=type(e).__name__)
+            logger.warning("DuckDuckGo %s search failed: %s", name, e)
+    _retrieval_event("search_complete", pages=0)
+    return [], []
 
 def classify_query(query):
     categories = list(CATEGORY_SOURCES.keys())
@@ -776,18 +872,23 @@ def search_and_scrape(query, category='general'):
                     for text, url in segments]
     segments.extend((page[:650], url) for page, url in zip(web_pages, urls))
 
-    if not segments and category != 'general':
+    fallback_pages = []
+    retried = not segments and category != 'general'
+    if retried:
         logger.warning(f"No context for category '{category}', retrying with general sources")
         fallback_pages, fallback_urls = fetch_duckduckgo_web(query, domains=None)
         wiki_fallback, wiki_url = fetch_wikipedia(query)
         if wiki_fallback:
-            segments.append((wiki_fallback, wiki_url))
+            # A successful retry needs the same space reservation as an
+            # initially successful web search. Keep, rather than remove, Wiki.
+            wiki_excerpt = wiki_fallback[:600] if fallback_pages else wiki_fallback
+            segments.append((wiki_excerpt, wiki_url))
         segments.extend((page[:650], url) for page, url in zip(fallback_pages, fallback_urls))
 
     # Emit only links whose content was actually included in the bounded prompt.
     context_parts = []
     context_urls = []
-    remaining = 2000 if web_pages else 1200
+    remaining = 2000 if web_pages or fallback_pages else 1200
     for text, url in segments:
         separator = 2 if context_parts else 0
         if remaining <= separator:
@@ -797,7 +898,53 @@ def search_and_scrape(query, category='general'):
         remaining -= len(excerpt) + separator
         if url and url not in context_urls:
             context_urls.append(url)
-    return "\n\n".join(context_parts), context_urls
+    context = "\n\n".join(context_parts)
+    _retrieval_event("context_ready", sources=len(context_urls),
+                     context_chars=len(context), retried=retried)
+    return context, context_urls
+
+
+def stream_search_with_progress(query, category):
+    """Keep network calls sequential while sending progress during retrieval."""
+    events = queue.Queue()
+    cancelled = threading.Event()
+
+    def progress(domain, stage):
+        if cancelled.is_set():
+            raise _SearchCancelled()
+        events.put(("progress", {"domain": domain, "stage": stage}))
+
+    def retrieve():
+        token = _search_progress_handler.set(progress)
+        try:
+            events.put(("result", search_and_scrape(query, category)))
+        except _SearchCancelled:
+            events.put(("cancelled", None))
+        except Exception as exc:
+            events.put(("error", exc))
+        finally:
+            _search_progress_handler.reset(token)
+
+    worker = threading.Thread(target=retrieve, name="retrieval-progress", daemon=True)
+    worker.start()
+    try:
+        while True:
+            try:
+                kind, payload = events.get(timeout=2)
+            except queue.Empty:
+                yield f"data: {json.dumps({'heartbeat': True})}\n\n"
+                continue
+            if kind == "progress":
+                yield f"data: {json.dumps({'search_progress': payload})}\n\n"
+            elif kind == "result":
+                return payload
+            elif kind == "error":
+                raise payload
+            else:
+                return "", []
+    finally:
+        # A current request may finish, but no further requests start on cancel.
+        cancelled.set()
 
 # ── Hidden Command Interception ────────────────────────────────────────────────
 
@@ -1925,7 +2072,7 @@ def make_stream_response(generator):
         headers={'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no'}
     )
 
-P3_NUM_PREDICT = 1024
+OLLAMA_NUM_PREDICT = -1
 FILE_START_MARKER = "<<<FILE:"
 FILE_END_MARKER = "<<<ENDFILE>>>"
 
@@ -1994,13 +2141,15 @@ def ollama_p3_stream(model, messages, user_id=None, guest_key=None):
     """Yield (text, files, error) incrementally from the P3 Ollama response."""
     stream_filter = P3FileStreamFilter(user_id=user_id, guest_key=guest_key)
     try:
+        saw_model_done = False
+        hit_context_limit = False
         with requests.post(
             "http://localhost:11434/api/chat",
             json={
                 "model": model,
                 "messages": prepare_ollama_messages(messages),
                 "stream": True,
-                "options": {"num_ctx": 4608, "num_predict": P3_NUM_PREDICT}
+                "options": {"num_ctx": 4608, "num_predict": OLLAMA_NUM_PREDICT}
             },
             stream=True, timeout=240
         ) as resp:
@@ -2031,12 +2180,24 @@ def ollama_p3_stream(model, messages, user_id=None, guest_key=None):
                                 if text or file_infos:
                                     yield text, file_infos, ""
                         if chunk.get('done', False):
+                            saw_model_done = True
+                            hit_context_limit = chunk.get('done_reason') == 'length'
                             break
                     except json.JSONDecodeError:
                         continue
             text, file_infos = stream_filter.flush()
             if text or file_infos:
                 yield text, file_infos, ""
+            if not saw_model_done:
+                yield "", [], (
+                    "The response stream ended before the model confirmed completion. "
+                    "This answer may be incomplete."
+                )
+            elif hit_context_limit:
+                yield "", [], (
+                    "The model reached its current context limit. "
+                    "This answer may be incomplete."
+                )
     except requests.exceptions.Timeout:
         text, file_infos = stream_filter.flush()
         yield text, file_infos, "The model took too long to respond. Try a shorter question or ask again."
@@ -2252,7 +2413,7 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
                 category = quick_classify(q)
                 yield status(f'Searching {category} sources…')
                 search_started = time.monotonic()
-                context, src_urls = search_and_scrape(q, category)
+                context, src_urls = yield from stream_search_with_progress(q, category)
                 logger.info("%s search_duration_ms=%.0f sources=%d", display_name,
                             (time.monotonic() - search_started) * 1000, len(src_urls))
                 all_source_urls.extend(src_urls)
@@ -2320,9 +2481,12 @@ def stream_research_model(model, display_name, messages, client_date=None, allow
                 if text:
                     model_output_seen = True
                     yield f"data: {json.dumps({'text': text, 'done': False})}\n\n"
-                if error and not model_output_seen:
-                    yield f"data: {json.dumps({'error': error})}\n\n"
-                    return
+                if error:
+                    if model_output_seen:
+                        yield f"data: {json.dumps({'warning': error})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'error': error})}\n\n"
+                        return
         finally:
             logger.info("%s model_duration_ms=%.0f", display_name,
                         (time.monotonic() - model_started) * 1000)

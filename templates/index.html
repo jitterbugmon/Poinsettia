@@ -409,6 +409,16 @@
             word-wrap: break-word;
         }
 
+        .response-warning {
+            margin: 10px 0 0;
+            padding: 8px 10px;
+            border-left: 3px solid #e5a23b;
+            border-radius: 4px;
+            background: rgba(229, 162, 59, 0.1);
+            color: #f1c77e;
+            font-size: 0.88rem;
+        }
+
         .table-scroll {
             max-width: 100%;
             margin: 12px 0;
@@ -455,6 +465,7 @@
 
         .thinking-indicator {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 8px;
             padding: 4px 0;
@@ -483,6 +494,60 @@
             opacity: 0.55;
             letter-spacing: 0.03em;
             transition: opacity 0.3s;
+        }
+        .thinking-sites {
+            flex: 1 0 100%;
+            min-width: 0;
+            margin: 2px 0 0 20px;
+        }
+        .thinking-sites-heading {
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.035em;
+        }
+        .thinking-sites-list {
+            max-height: 7rem;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding: 5px 9px;
+            list-style: none;
+            border-left: 2px solid var(--primary-color);
+            border-radius: 0 6px 6px 0;
+            background: rgba(255, 255, 255, 0.035);
+        }
+        .thinking-site {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 0;
+            padding: 2px 0;
+            color: var(--text-color);
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+        .thinking-site + .thinking-site {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .thinking-site-domain {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+        .thinking-site-stage {
+            flex: 0 0 auto;
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+            opacity: 0.72;
+        }
+        @media (max-width: 480px) {
+            .thinking-sites {
+                margin-left: 0;
+            }
+            .thinking-sites-list {
+                max-height: 6rem;
+            }
         }
 
         .waiting-game-invite {
@@ -4532,7 +4597,11 @@
 
                 let fullText = '';
                 let pendingSources = [];
+                let completionWarning = '';
+                let serverConfirmedCompletion = false;
                 let thinkingRemoved = false;
+                let searchProgressList = null;
+                const searchProgressItems = new Map();
                 let textRenderFrame = null;
                 function renderStreamText() {
                     textRenderFrame = null;
@@ -4569,8 +4638,63 @@
                     removeWaitingOffer();
                 }
 
+                function updateSearchProgress(progress) {
+                    if (thinkingRemoved || !thinkingEl.isConnected || !progress ||
+                        typeof progress.domain !== 'string' || typeof progress.stage !== 'string') {
+                        return;
+                    }
+
+                    const domain = progress.domain.trim();
+                    const stage = progress.stage;
+                    if (!domain || (stage !== 'searching' && stage !== 'checking')) return;
+
+                    if (!searchProgressList) {
+                        const sitesSection = document.createElement('div');
+                        sitesSection.className = 'thinking-sites';
+
+                        const heading = document.createElement('p');
+                        heading.className = 'thinking-sites-heading';
+                        heading.textContent = 'Sites being checked';
+                        sitesSection.appendChild(heading);
+
+                        searchProgressList = document.createElement('ul');
+                        searchProgressList.className = 'thinking-sites-list';
+                        searchProgressList.setAttribute('aria-label', 'Sites being checked');
+                        searchProgressList.setAttribute('aria-live', 'polite');
+                        searchProgressList.setAttribute('aria-relevant', 'additions text');
+                        searchProgressList.tabIndex = 0;
+                        sitesSection.appendChild(searchProgressList);
+                        thinkingEl.appendChild(sitesSection);
+                    }
+
+                    const key = domain.toLowerCase();
+                    let item = searchProgressItems.get(key);
+                    if (!item) {
+                        item = document.createElement('li');
+                        item.className = 'thinking-site';
+
+                        const domainLabel = document.createElement('span');
+                        domainLabel.className = 'thinking-site-domain';
+                        domainLabel.textContent = domain;
+                        item.appendChild(domainLabel);
+
+                        const stageLabel = document.createElement('span');
+                        stageLabel.className = 'thinking-site-stage';
+                        item.appendChild(stageLabel);
+
+                        searchProgressList.appendChild(item);
+                        item = { item: item, stageLabel: stageLabel };
+                        searchProgressItems.set(key, item);
+                    }
+                    item.stageLabel.textContent = stage === 'searching' ? 'Searching' : 'Checking';
+                }
+
                 function finishStreaming() {
                     if (!isStreaming) return;
+                    if (fullText && !serverConfirmedCompletion && !completionWarning) {
+                        completionWarning =
+                            'The stream ended before completion was confirmed. This answer may be incomplete.';
+                    }
                     if (textRenderFrame !== null) {
                         window.cancelAnimationFrame(textRenderFrame);
                         renderStreamText();
@@ -4585,7 +4709,11 @@
                         textSpan.textContent = 'The model did not return a response. Please try again.';
                     }
                     if (fullText) {
-                        histories[requestMode].push({ role: 'assistant', content: fullText });
+                        let savedText = fullText;
+                        if (completionWarning) {
+                            savedText += '\n\n[Response may be incomplete: ' + completionWarning + ']';
+                        }
+                        histories[requestMode].push({ role: 'assistant', content: savedText });
                         saveHistories();
                         if (currentUser) {
                             syncConversation(requestMode, requestConversationId);
@@ -4612,6 +4740,12 @@
                         sourcesSection.appendChild(sourcesList);
                         messageDiv.appendChild(sourcesSection);
                         scrollToBottom();
+                    }
+                    if (completionWarning) {
+                        const warning = document.createElement('p');
+                        warning.className = 'response-warning';
+                        warning.textContent = 'This response may be incomplete: ' + completionWarning;
+                        messageDiv.appendChild(warning);
                     }
                     // Copy button — captures fullText at the moment it's clicked
                     var capturedText = fullText;
@@ -4653,9 +4787,17 @@
                                 return;
                             }
 
+                            if (data.warning) {
+                                completionWarning = data.warning;
+                            }
+
                             if (data.heartbeat || data.status) {
                                 var lbl = thinkingEl.querySelector('.thinking-label');
                                 if (lbl) lbl.textContent = data.status || 'Thinking…';
+                            }
+
+                            if (data.search_progress) {
+                                updateSearchProgress(data.search_progress);
                             }
 
                             if (data.sources) {
@@ -4668,16 +4810,18 @@
                             }
 
                             if (data.file) {
+                                removeThinking();
                                 addFileToSidebar(data.file);
                             }
 
-                            if (data.text) {
+                            if (typeof data.text === 'string' && data.text.length > 0) {
                                 removeThinking();
                                 fullText += data.text;
                                 scheduleStreamTextRender();
                             }
 
                             if (data.done) {
+                                serverConfirmedCompletion = true;
                                 finishStreaming();
                             }
                         } catch (e) {

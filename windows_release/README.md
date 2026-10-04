@@ -68,3 +68,31 @@ The build does not currently sign/verify every bundled native dependency or the
 generated uninstaller; see `GITHUB_RELEASE.md` for the required Windows release
 audit. A valid signature does not guarantee SmartScreen reputation or Smart
 App Control approval.
+
+## Retrieval diagnostics
+
+New builds write a rotating, per-user log at:
+
+`%LOCALAPPDATA%\Poinsettia\Windows\logs\retrieval.log`
+
+There are at most two backup logs, with a 512 KiB rotation threshold per file.
+Logging starts before the copied website backend loads, including in the
+windowed executable. A startup record identifies the loaded backend format and
+its SHA-256 fingerprint so different installed builds can be distinguished.
+
+The log contains only structured retrieval metadata: endpoint names, HTTP
+statuses, result/evidence counts, elapsed request time, retry use, and error
+categories such as TLS, proxy, timeout, or connection failure. It does not
+include query text, page bodies, full URLs, request headers, cookies, exception
+messages, or chat content. Other application logs are not forwarded to this
+file.
+
+A successful HTTP response alone does not establish successful search:
+`search_parsed` reports recognized links, `search_evidence` reports usable
+evidence, and `context_ready` reports sources surviving prompt assembly.
+DuckDuckGo HTML POST, HTML GET, and Lite remain sequential; the next endpoint
+is tried if an earlier one yields no usable evidence. Lite excerpts remain
+explicitly labeled as indexed snippets when full pages are unavailable.
+
+These diagnostics require a rebuilt Windows application. Updating the Repl or
+the source bundle does not modify an already installed executable.
