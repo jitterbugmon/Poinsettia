@@ -121,8 +121,8 @@ required.
   `POINSETTIA_OLLAMA_INSTALLER_URL` repository variable.
 - Set `POINSETTIA_OLLAMA_SHA256` to the approved installer digest repository
   secret.
-- Keep the Apache License, Version 2.0 attribution for `gemma4:26b` and
-  `gemma4:31b` in the release bundle.
+- Keep the Apache License, Version 2.0 attribution for Q4_K_M
+  `gemma4:26b-a4b-it-q4_K_M` and `gemma4:31b-it-q4_K_M` in the release bundle.
 - Tagged CI releases and manual `signed` builds require valid Authenticode
   signatures on the main application executable and outer installer. Both
   signatures are checked against the configured signer thumbprint; CI checks

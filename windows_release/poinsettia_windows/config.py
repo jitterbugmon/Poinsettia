@@ -44,11 +44,11 @@ OLLAMA_INSTALLER_SHA256 = (
 P2_MODEL = "poinsettia"
 P3_MODEL = "p3"
 P2_BASE_MODEL = "gemma4:e4b"
-P3_BASE_MODEL = "gemma4:12b"
+P3_BASE_MODEL = "gemma4:12b-it-q4_K_M"
 P4_FAX_MODEL = "p4-fax"
-P4_FAX_BASE_MODEL = "gemma4:26b"
+P4_FAX_BASE_MODEL = "gemma4:26b-a4b-it-q4_K_M"
 P4_CANDOR_MODEL = "p4-candor"
-P4_CANDOR_BASE_MODEL = "gemma4:31b"
+P4_CANDOR_BASE_MODEL = "gemma4:31b-it-q4_K_M"
 P4_RELEASE_DATE = None
 
 SYSTEM_PROMPTS = {

@@ -10,8 +10,8 @@ license is the Apache License, Version 2.0.
 Poinsettia 3.9 base weights
 ---------------------------
 Gemma 4 12B base weights are developed and released by Google DeepMind /
-Google. The `gemma4:12b` base weights used by Poinsettia 3.9 are governed by
-the Apache License, Version 2.0. Gemma 4 12B supplies the native multimodal
+Google. The Q4_K_M 4-bit `gemma4:12b-it-q4_K_M` base weights used by
+Poinsettia 3.9 are governed by the Apache License, Version 2.0. Gemma 4 12B supplies the native multimodal
 image and audio input architecture used by this release.
 
 Apache License, Version 2.0 notice
@@ -39,15 +39,16 @@ bundle where the model distribution permits redistribution.
 
 Poinsettia 4.0 base weights
 ---------------------------
-Poinsettia 4.0 "Fax" uses the `gemma4:26b` base model and Poinsettia 4.0
-"Candor" uses the `gemma4:31b` base model. Both base models are distributed
-under the Apache License, Version 2.0.
+Poinsettia 4.0 "Fax" uses the Q4_K_M 4-bit
+`gemma4:26b-a4b-it-q4_K_M` base model and Poinsettia 4.0 "Candor" uses the
+Q4_K_M 4-bit `gemma4:31b-it-q4_K_M` base model. Both base models are
+distributed under the Apache License, Version 2.0.
 
 Gemma 4 26B and 31B attribution
 --------------------------------
 Copyright 2026 Google DeepMind / Google
 
-The `gemma4:26b` and `gemma4:31b` base weights are distributed under the
+The `gemma4:26b-a4b-it-q4_K_M` and `gemma4:31b-it-q4_K_M` base weights are distributed under the
 Apache License, Version 2.0. The Apache License, Version 2.0 notice above is
 part of this release's third-party license bundle and must remain with
 redistributed copies.

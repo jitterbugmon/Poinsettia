@@ -40,12 +40,13 @@ safety, or other expert advice. Review output before relying on it.
 
 Poinsettia 2.9 uses `gemma4:e4b` base weights attributed to Google DeepMind /
 Google and governed by the Apache License, Version 2.0. Poinsettia 3.9 uses
-`gemma4:12b` base weights attributed to Google DeepMind / Google and governed by
+Q4_K_M 4-bit `gemma4:12b-it-q4_K_M` base weights attributed to Google DeepMind / Google and governed by
 the Apache License, Version 2.0. Poinsettia 3.9 uses the model's native
 multimodal architecture for image and speech/audio input. The applicable model
 licenses and notices in `open_source_credits.txt` are part of this release and
-must remain with redistributed copies. Poinsettia 4.0 "Fax" uses `gemma4:26b`
-and Poinsettia 4.0 "Candor" uses `gemma4:31b`; both base models are attributed
+must remain with redistributed copies. Poinsettia 4.0 "Fax" uses Q4_K_M 4-bit
+`gemma4:26b-a4b-it-q4_K_M` and Poinsettia 4.0 "Candor" uses
+`gemma4:31b-it-q4_K_M`; both base models are attributed
 to Google DeepMind / Google and governed by the Apache License, Version 2.0.
 
 ## 7. Availability and changes

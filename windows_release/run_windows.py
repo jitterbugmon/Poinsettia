@@ -6,12 +6,15 @@ import webbrowser
 from werkzeug.serving import make_server
 
 from poinsettia_windows.desktop_shell import create_shell_app
+from poinsettia_windows.diagnostics import configure_diagnostics, record_runtime
 from poinsettia_windows.ollama import OllamaManager
 from poinsettia_windows.site_mirror import load_site_app, prepare_site_copy
 
 
 def main() -> None:
+    configure_diagnostics()
     site_directory = prepare_site_copy()
+    record_runtime(site_directory)
     site_app = load_site_app(site_directory)
     site_server = make_server("127.0.0.1", 0, site_app)
     site_url = f"http://127.0.0.1:{site_server.server_port}"

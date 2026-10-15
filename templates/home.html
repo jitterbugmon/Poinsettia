@@ -1105,7 +1105,7 @@
                     <strong>Available in chat now.</strong> P4 accepts image attachments and keeps web research, citations, weather, and downloadable file creation.
                 </div>
                 <p class="model4-attribution">
-                    <strong>Model credit:</strong> Fax uses <code>gemma4:26b</code> and Candor uses <code>gemma4:31b</code>, both developed and released by Google DeepMind / Google under the Apache License, Version 2.0.
+                    <strong>Model credit:</strong> Fax uses <code>gemma4:26b-a4b-it-q4_K_M</code> and Candor uses <code>gemma4:31b-it-q4_K_M</code>; P3 uses <code>gemma4:12b-it-q4_K_M</code>. These Google DeepMind / Google Gemma 4 models use Q4_K_M 4-bit quantization and are under Apache License 2.0.
                 </p>
             </div>
         </div>
@@ -1115,6 +1115,17 @@
         <div class="section-content">
             <h2 class="section-title">Version History</h2>
             <div class="version-history-list">
+                <div class="vh-item">
+                    <div class="vh-header">
+                        <span class="vh-version">v4.2 — “Halogen”</span>
+                        <span class="vh-date">October 2026</span>
+                    </div>
+                    <ul class="vh-changes">
+                        <li>Reduced interface clutter and added a saved light/dark appearance setting</li>
+                        <li>Web search and citations now use Wikipedia only; weather and geocoding remain separate</li>
+                        <li>P3, Fax, and Candor use pre-quantized 4-bit Q4_K_M model bases</li>
+                    </ul>
+                </div>
                 <div class="vh-item">
                     <div class="vh-header">
                         <span class="vh-version">v4.0.0</span>
@@ -1168,7 +1179,7 @@
                     </div>
                     <ul class="vh-changes">
                         <li>Poinsettia 3 — real-time internet-connected mode</li>
-                        <li>Live web search via Wikipedia, news, and trusted sources</li>
+                        <li>Live web search via Wikipedia only</li>
                         <li>Offline detection with clear user messaging</li>
                         <li>Separate conversation histories per model</li>
                         <li>P2 / P3 toggle in chat header</li>

@@ -1,7 +1,7 @@
 # Poinsettia Windows Privacy Policy
 
-**Version:** windows-1.1
-**Effective date:** September 2026
+**Version:** windows-1.3
+**Effective date:** October 14, 2026
 
 Poinsettia Windows is designed for local use. Account records and the signed-in
 website database are not used by this separate desktop release.
@@ -20,8 +20,9 @@ messages.
 ## Network requests
 
 The first-run setup may contact the official Ollama download endpoint and the
-local Ollama API. Poinsettia 3.9 and Poinsettia 4.0 may contact external search, weather, and
-source websites when live research is requested. Do not submit sensitive
+local Ollama API. Web search and cited article content use Wikipedia only.
+Weather requests may contact the National Weather Service, and location lookup
+may contact OpenStreetMap's Nominatim service. Do not submit sensitive
 information to any external source.
 
 ## Choices
