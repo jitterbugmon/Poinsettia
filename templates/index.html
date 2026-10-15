@@ -24,6 +24,53 @@
             --poinsettia-content-size: 16px;
         }
 
+        :root[data-theme="light"] {
+            --dark-bg: #f4f5f7;
+            --darker-bg: #ffffff;
+            --card-bg: #ffffff;
+            --secondary-color: #e9edf2;
+            --text-color: #20242a;
+            --text-secondary: #505a66;
+            --glow-color: rgba(190, 45, 55, 0.16);
+            --box-shadow: 0 4px 24px rgba(27, 39, 51, 0.10);
+        }
+
+        :root[data-theme="light"] header,
+        :root[data-theme="light"] .chat-input-container {
+            border-color: rgba(32, 36, 42, 0.12);
+            box-shadow: 0 2px 10px rgba(27, 39, 51, 0.06);
+        }
+
+        :root[data-theme="light"] .conversation-sidebar-toggle,
+        :root[data-theme="light"] .settings-btn,
+        :root[data-theme="light"] .multimodal-button {
+            border-color: rgba(32, 36, 42, 0.18);
+        }
+
+        :root[data-theme="light"] .settings-modal-content,
+        :root[data-theme="light"] .version-modal-content,
+        :root[data-theme="light"] .chat-action-modal-content,
+        :root[data-theme="light"] .auth-modal-content,
+        :root[data-theme="light"] .legal-document-content,
+        :root[data-theme="light"] .conversation-sidebar,
+        :root[data-theme="light"] .files-sidebar {
+            border-color: rgba(32, 36, 42, 0.14);
+            box-shadow: 0 12px 40px rgba(27, 39, 51, 0.16);
+        }
+
+        :root[data-theme="light"] input,
+        :root[data-theme="light"] textarea,
+        :root[data-theme="light"] select,
+        :root[data-theme="light"] .chat-input {
+            color: var(--text-color);
+        }
+
+        :root[data-theme="light"] .message-attachment-label,
+        :root[data-theme="light"] .attachment-chip {
+            background: rgba(32, 36, 42, 0.06);
+            border-color: rgba(32, 36, 42, 0.14);
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -376,6 +423,18 @@
                 0 10px 28px rgba(0, 0, 0, 0.22);
         }
 
+        :root[data-theme="light"] .user-message,
+        :root[data-theme="light"] .bot-message {
+            background: #e9edf2;
+            color: #20242a;
+            border: 1px solid #d7dde5;
+            box-shadow: 0 2px 6px rgba(27, 39, 51, 0.08);
+        }
+
+        :root[data-theme="light"] .bot-message {
+            border-left: 3px solid #d7dde5;
+        }
+
         .message-content {
             display: block;
             width: 100%;
@@ -407,6 +466,16 @@
         .streaming-text {
             white-space: pre-wrap;
             word-wrap: break-word;
+        }
+
+        .response-warning {
+            margin: 10px 0 0;
+            padding: 8px 10px;
+            border-left: 3px solid #e5a23b;
+            border-radius: 4px;
+            background: rgba(229, 162, 59, 0.1);
+            color: #f1c77e;
+            font-size: 0.88rem;
         }
 
         .table-scroll {
@@ -455,6 +524,7 @@
 
         .thinking-indicator {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 8px;
             padding: 4px 0;
@@ -483,6 +553,60 @@
             opacity: 0.55;
             letter-spacing: 0.03em;
             transition: opacity 0.3s;
+        }
+        .thinking-sites {
+            flex: 1 0 100%;
+            min-width: 0;
+            margin: 2px 0 0 20px;
+        }
+        .thinking-sites-heading {
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.035em;
+        }
+        .thinking-sites-list {
+            max-height: 7rem;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding: 5px 9px;
+            list-style: none;
+            border-left: 2px solid var(--primary-color);
+            border-radius: 0 6px 6px 0;
+            background: rgba(255, 255, 255, 0.035);
+        }
+        .thinking-site {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 0;
+            padding: 2px 0;
+            color: var(--text-color);
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+        .thinking-site + .thinking-site {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .thinking-site-domain {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+        .thinking-site-stage {
+            flex: 0 0 auto;
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+            opacity: 0.72;
+        }
+        @media (max-width: 480px) {
+            .thinking-sites {
+                margin-left: 0;
+            }
+            .thinking-sites-list {
+                max-height: 6rem;
+            }
         }
 
         .waiting-game-invite {
@@ -3247,6 +3371,15 @@
             </div>
             <div class="version-list">
                 <div class="version-item">
+                    <div class="version-number">v4.2 — “Halogen”</div>
+                    <div class="version-date">October 2026</div>
+                    <ul class="version-changes">
+                        <li>Reduced interface clutter and added a saved light/dark appearance setting</li>
+                        <li>Restricted web search and citations to Wikipedia; weather and geocoding remain separate features</li>
+                        <li>Moved P3, Fax, and Candor to pre-quantized 4-bit Q4_K_M model bases</li>
+                    </ul>
+                </div>
+                <div class="version-item">
                     <div class="version-number">v4.0.0</div>
                         <div class="version-date">Poinsettia 4.0 “Fax” and “Candor” — Available now</div>
                     <ul class="version-changes">
@@ -3290,7 +3423,7 @@
                     <div class="version-date">July 2026</div>
                     <ul class="version-changes">
                         <li>Poinsettia 3 — real-time internet-connected mode</li>
-                        <li>Live web search via Wikipedia & trusted sources</li>
+                        <li>Web search via Wikipedia only</li>
                         <li>Offline detection with clear user messaging</li>
                         <li>Separate conversation histories per model</li>
                         <li>P2 and P3 toggle in chat header</li>
@@ -3334,9 +3467,16 @@
             <div class="settings-modal-header">
                 <div>
                     <div class="settings-modal-title" id="settings-modal-title">Display settings</div>
-                    <div class="settings-modal-subtitle">Make Poinsettia feel more like yours.</div>
                 </div>
                 <button class="settings-close-btn" id="settings-close" type="button" aria-label="Close settings">&times;</button>
+            </div>
+
+            <div class="settings-field">
+                <label for="settings-theme">Appearance</label>
+                <select class="settings-select" id="settings-theme">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                </select>
             </div>
 
             <div class="settings-field">
@@ -3359,10 +3499,6 @@
                     <span>Small</span>
                     <span>Large</span>
                 </div>
-            </div>
-
-            <div class="settings-preview" id="settings-preview">
-                <strong>Preview:</strong> Clear answers, your way.
             </div>
 
             <div class="settings-modal-actions">
@@ -3500,6 +3636,7 @@
             const settingsDone = document.getElementById('settings-done');
             const settingsReset = document.getElementById('settings-reset');
             const settingsFont = document.getElementById('settings-font');
+            const settingsTheme = document.getElementById('settings-theme');
             const settingsTextSize = document.getElementById('settings-text-size');
             const settingsSizeOutput = document.getElementById('settings-size-output');
             const renameChatModal = document.getElementById('chat-rename-modal');
@@ -3537,7 +3674,7 @@
             let audioRecorderStream = null;
             let audioRecorderChunks = [];
 
-            const defaultSettings = { font: 'outfit', textSize: 16 };
+            const defaultSettings = { font: 'outfit', textSize: 16, theme: 'dark' };
             const fontStacks = {
                 outfit: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
                 system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -3549,10 +3686,13 @@
                 var safeFont = fontStacks[nextSettings.font] ? nextSettings.font : defaultSettings.font;
                 var parsedSize = Number(nextSettings.textSize);
                 var safeSize = Number.isFinite(parsedSize) ? Math.min(22, Math.max(14, parsedSize)) : defaultSettings.textSize;
-                var normalized = { font: safeFont, textSize: safeSize };
+                var safeTheme = nextSettings.theme === 'light' ? 'light' : 'dark';
+                var normalized = { font: safeFont, textSize: safeSize, theme: safeTheme };
+                document.documentElement.dataset.theme = safeTheme;
                 document.documentElement.style.setProperty('--poinsettia-font-family', fontStacks[safeFont]);
                 document.documentElement.style.setProperty('--poinsettia-content-size', safeSize + 'px');
                 settingsFont.value = safeFont;
+                settingsTheme.value = safeTheme;
                 settingsTextSize.value = String(safeSize);
                 settingsSizeOutput.textContent = safeSize + 'px';
                 return normalized;
@@ -3574,7 +3714,7 @@
             function openSettings() {
                 settingsModal.classList.add('active');
                 settingsBtn.setAttribute('aria-expanded', 'true');
-                window.setTimeout(function() { settingsFont.focus(); }, 0);
+                window.setTimeout(function() { settingsTheme.focus(); }, 0);
             }
 
             function closeSettings() {
@@ -3593,11 +3733,15 @@
                 if (e.target === settingsModal) closeSettings();
             });
             settingsFont.addEventListener('change', function() {
-                currentSettings = applySettings({ font: settingsFont.value, textSize: settingsTextSize.value });
+                currentSettings = applySettings({ font: settingsFont.value, textSize: settingsTextSize.value, theme: settingsTheme.value });
+                saveSettings(currentSettings);
+            });
+            settingsTheme.addEventListener('change', function() {
+                currentSettings = applySettings({ font: settingsFont.value, textSize: settingsTextSize.value, theme: settingsTheme.value });
                 saveSettings(currentSettings);
             });
             settingsTextSize.addEventListener('input', function() {
-                currentSettings = applySettings({ font: settingsFont.value, textSize: settingsTextSize.value });
+                currentSettings = applySettings({ font: settingsFont.value, textSize: settingsTextSize.value, theme: settingsTheme.value });
                 saveSettings(currentSettings);
             });
             settingsReset.addEventListener('click', function() {
@@ -4532,7 +4676,11 @@
 
                 let fullText = '';
                 let pendingSources = [];
+                let completionWarning = '';
+                let serverConfirmedCompletion = false;
                 let thinkingRemoved = false;
+                let searchProgressList = null;
+                const searchProgressItems = new Map();
                 let textRenderFrame = null;
                 function renderStreamText() {
                     textRenderFrame = null;
@@ -4569,8 +4717,63 @@
                     removeWaitingOffer();
                 }
 
+                function updateSearchProgress(progress) {
+                    if (thinkingRemoved || !thinkingEl.isConnected || !progress ||
+                        typeof progress.domain !== 'string' || typeof progress.stage !== 'string') {
+                        return;
+                    }
+
+                    const domain = progress.domain.trim();
+                    const stage = progress.stage;
+                    if (!domain || (stage !== 'searching' && stage !== 'checking')) return;
+
+                    if (!searchProgressList) {
+                        const sitesSection = document.createElement('div');
+                        sitesSection.className = 'thinking-sites';
+
+                        const heading = document.createElement('p');
+                        heading.className = 'thinking-sites-heading';
+                        heading.textContent = 'Sites being checked';
+                        sitesSection.appendChild(heading);
+
+                        searchProgressList = document.createElement('ul');
+                        searchProgressList.className = 'thinking-sites-list';
+                        searchProgressList.setAttribute('aria-label', 'Sites being checked');
+                        searchProgressList.setAttribute('aria-live', 'polite');
+                        searchProgressList.setAttribute('aria-relevant', 'additions text');
+                        searchProgressList.tabIndex = 0;
+                        sitesSection.appendChild(searchProgressList);
+                        thinkingEl.appendChild(sitesSection);
+                    }
+
+                    const key = domain.toLowerCase();
+                    let item = searchProgressItems.get(key);
+                    if (!item) {
+                        item = document.createElement('li');
+                        item.className = 'thinking-site';
+
+                        const domainLabel = document.createElement('span');
+                        domainLabel.className = 'thinking-site-domain';
+                        domainLabel.textContent = domain;
+                        item.appendChild(domainLabel);
+
+                        const stageLabel = document.createElement('span');
+                        stageLabel.className = 'thinking-site-stage';
+                        item.appendChild(stageLabel);
+
+                        searchProgressList.appendChild(item);
+                        item = { item: item, stageLabel: stageLabel };
+                        searchProgressItems.set(key, item);
+                    }
+                    item.stageLabel.textContent = stage === 'searching' ? 'Searching' : 'Checking';
+                }
+
                 function finishStreaming() {
                     if (!isStreaming) return;
+                    if (fullText && !serverConfirmedCompletion && !completionWarning) {
+                        completionWarning =
+                            'The stream ended before completion was confirmed. This answer may be incomplete.';
+                    }
                     if (textRenderFrame !== null) {
                         window.cancelAnimationFrame(textRenderFrame);
                         renderStreamText();
@@ -4585,7 +4788,11 @@
                         textSpan.textContent = 'The model did not return a response. Please try again.';
                     }
                     if (fullText) {
-                        histories[requestMode].push({ role: 'assistant', content: fullText });
+                        let savedText = fullText;
+                        if (completionWarning) {
+                            savedText += '\n\n[Response may be incomplete: ' + completionWarning + ']';
+                        }
+                        histories[requestMode].push({ role: 'assistant', content: savedText });
                         saveHistories();
                         if (currentUser) {
                             syncConversation(requestMode, requestConversationId);
@@ -4612,6 +4819,12 @@
                         sourcesSection.appendChild(sourcesList);
                         messageDiv.appendChild(sourcesSection);
                         scrollToBottom();
+                    }
+                    if (completionWarning) {
+                        const warning = document.createElement('p');
+                        warning.className = 'response-warning';
+                        warning.textContent = 'This response may be incomplete: ' + completionWarning;
+                        messageDiv.appendChild(warning);
                     }
                     // Copy button — captures fullText at the moment it's clicked
                     var capturedText = fullText;
@@ -4653,9 +4866,17 @@
                                 return;
                             }
 
+                            if (data.warning) {
+                                completionWarning = data.warning;
+                            }
+
                             if (data.heartbeat || data.status) {
                                 var lbl = thinkingEl.querySelector('.thinking-label');
                                 if (lbl) lbl.textContent = data.status || 'Thinking…';
+                            }
+
+                            if (data.search_progress) {
+                                updateSearchProgress(data.search_progress);
                             }
 
                             if (data.sources) {
@@ -4668,16 +4889,18 @@
                             }
 
                             if (data.file) {
+                                removeThinking();
                                 addFileToSidebar(data.file);
                             }
 
-                            if (data.text) {
+                            if (typeof data.text === 'string' && data.text.length > 0) {
                                 removeThinking();
                                 fullText += data.text;
                                 scheduleStreamTextRender();
                             }
 
                             if (data.done) {
+                                serverConfirmedCompletion = true;
                                 finishStreaming();
                             }
                         } catch (e) {

@@ -193,7 +193,14 @@ class OllamaManager:
             payload = json.loads(line)
             completed = payload.get("completed")
             total = payload.get("total")
-            fraction = completed / total if total else 0
+            if (
+                isinstance(completed, (int, float))
+                and isinstance(total, (int, float))
+                and total > 0
+            ):
+                fraction = completed / total
+            else:
+                fraction = 0
             percent = start + round((end - start) * min(1, max(0, fraction)))
             self._update(
                 phase="downloading",

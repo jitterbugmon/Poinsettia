@@ -21,12 +21,13 @@ py -3.11 -m venv .venv-windows
 1. Review `windows_release/open_source_credits.txt`.
 2. Distribute the Apache License, Version 2.0 notice for the `gemma4:e4b`
    Gemma 4B base weights with the Poinsettia 2.9 release.
-3. Distribute the Apache License, Version 2.0 notice for the `gemma4:12b`
+3. Distribute the Apache License, Version 2.0 notice for the Q4_K_M
+   `gemma4:12b-it-q4_K_M`
    Gemma 4 12B base weights with the Poinsettia 3.9 model. This is the
    multimodal image and native audio model used by P3.9.
 4. Confirm the exact model files and licenses permitted for the intended
-   Microsoft Store distribution. Poinsettia 4.0's `gemma4:26b` and
-   `gemma4:31b` base models are also Apache License 2.0; keep the attribution
+   Microsoft Store distribution. Poinsettia 4.0's Q4_K_M
+   `gemma4:26b-a4b-it-q4_K_M` and `gemma4:31b-it-q4_K_M` base models are also Apache License 2.0; keep the attribution
    notice with the release. Do not embed weights in the installer unless
    redistribution is allowed.
 
@@ -60,7 +61,7 @@ before testing outside the build machine.
    setup, while an account needing updated consent cannot.
 7. Confirm a machine below 16 GB shows the Poinsettia 3.9 warning.
 8. Confirm both custom models are created from the release Modelfiles and that
-   P3.9 uses `gemma4:12b`.
+   P3.9 uses Q4_K_M `gemma4:12b-it-q4_K_M`.
 9. Confirm Poinsettia 4.0 Fax and Candor are available immediately.
 10. Confirm the iframe shows the same visual layout as the current website.
 11. Confirm the Windows copy writes its own database and `user_files` directory,

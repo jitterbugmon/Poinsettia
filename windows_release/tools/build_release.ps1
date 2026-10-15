@@ -123,6 +123,8 @@ Copy-Item "$Root\static" "$SiteRuntime\static" -Recurse
     --hidden-import sqlite3 `
     --hidden-import _sqlite3 `
     --hidden-import bs4 `
+    --hidden-import queue `
+    --hidden-import contextvars `
     --hidden-import werkzeug.security `
     --add-data "$Dist\dist;dist" `
     --add-data "$Dist\legal;legal" `
